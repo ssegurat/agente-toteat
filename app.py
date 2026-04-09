@@ -336,12 +336,25 @@ CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "restaura
 
 
 def _load_restaurant_config() -> dict:
-    """Carga configuracion del restaurante desde archivo JSON."""
+    """Carga configuracion: primero archivo local, luego Streamlit Secrets como fallback."""
+    # Intentar archivo local primero
     try:
         with open(CONFIG_FILE, "r") as f:
-            return json.load(f)
+            data = json.load(f)
+            if data:
+                return data
     except (FileNotFoundError, json.JSONDecodeError):
-        return {}
+        pass
+
+    # Fallback: leer desde Streamlit Secrets (para Streamlit Cloud)
+    defaults = {}
+    try:
+        secrets = st.secrets.get("restaurant_config", {})
+        if secrets:
+            defaults = dict(secrets)
+    except Exception:
+        pass
+    return defaults
 
 
 def _save_restaurant_config(config: dict):
