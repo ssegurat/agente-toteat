@@ -349,9 +349,17 @@ def _load_restaurant_config() -> dict:
     # Fallback: leer desde Streamlit Secrets (para Streamlit Cloud)
     defaults = {}
     try:
-        secrets = st.secrets.get("restaurant_config", {})
-        if secrets:
-            defaults = dict(secrets)
+        if "restaurant_config" in st.secrets:
+            sec = st.secrets["restaurant_config"]
+            defaults = {
+                "sueldos": int(sec.get("sueldos", 0)),
+                "arriendo_uf": float(sec.get("arriendo_uf", 0.0)),
+                "servicios": int(sec.get("servicios", 0)),
+                "otros": int(sec.get("otros", 0)),
+                "horas_op": int(sec.get("horas_op", 12)),
+                "m2": int(sec.get("m2", 100)),
+                "num_empleados": int(sec.get("num_empleados", 10)),
+            }
     except Exception:
         pass
     return defaults
