@@ -296,14 +296,13 @@ def fmt_pct(v):
     except (ValueError, TypeError):
         return "0%"
 
-def kpi(icon, label, value, sub=None, sub_type="normal", delta=None, delta_abs=None):
+def kpi(icon, label, value, sub=None, sub_type="normal", delta=None, delta_abs=None, record=None):
     sc = {"normal": "kpi-sub", "warn": "kpi-sub-warn", "red": "kpi-sub-red"}.get(sub_type, "kpi-sub")
     sub_h = f'<div class="{sc}">{sub}</div>' if sub else ""
     delta_h = ""
     if delta is not None:
         try:
             d = float(delta)
-            # Formato del monto absoluto de diferencia
             abs_text = ""
             if delta_abs is not None:
                 abs_val = float(delta_abs)
@@ -319,7 +318,10 @@ def kpi(icon, label, value, sub=None, sub_type="normal", delta=None, delta_abs=N
                 delta_h = f'<div style="font-size:0.72rem;font-weight:700;color:#6b7280;margin-top:2px;">= 0%{abs_text}</div>'
         except (ValueError, TypeError):
             pass
-    return f'<div class="kpi"><div class="kpi-icon">{icon}</div><div class="kpi-label">{label}</div><div class="kpi-val">{value}</div>{delta_h}{sub_h}</div>'
+    record_h = ""
+    if record:
+        record_h = f'<div style="font-size:0.66rem;color:#b45309;font-weight:600;margin-top:4px;padding:3px 6px;background:#fffbeb;border-radius:4px;border:1px solid #f59e0b20;display:inline-block;">{record}</div>'
+    return f'<div class="kpi"><div class="kpi-icon">{icon}</div><div class="kpi-label">{label}</div><div class="kpi-val">{value}</div>{delta_h}{sub_h}{record_h}</div>'
 
 
 def calc_delta(current, previous):
@@ -1707,11 +1709,10 @@ def render_kpis():
         st.markdown(f'<div style="font-size:0.7rem;color:{TEXT_SECONDARY};line-height:1.4;margin-top:4px;padding:6px 8px;background:{BORDER_LIGHT};border-radius:6px;">{text}</div>', unsafe_allow_html=True)
 
     def kpi_record(kpi_name, current_val, higher_is_better=True, is_money=True):
-        """Muestra el mejor registro historico de un KPI."""
+        """Retorna string con el mejor registro historico de un KPI para mostrar dentro del card."""
         best_val, best_month = _get_best_kpi(kpi_name, higher_is_better)
         if best_val is None or best_month is None:
-            return
-        # Format month name
+            return None
         try:
             y, m = best_month.split("-")
             meses_names = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
@@ -1719,29 +1720,21 @@ def render_kpis():
         except Exception:
             month_label = best_month
 
-        # Calculate difference
-        if current_val and best_val:
-            if is_money:
-                diff_text = fmt(abs(best_val - current_val))
-            else:
-                diff_text = f"{abs(best_val - current_val):.1f}"
+        if not current_val or not best_val:
+            return None
 
-            if higher_is_better:
-                if current_val >= best_val:
-                    # Current IS the record!
-                    st.markdown(f'<div style="font-size:0.68rem;color:#f59e0b;font-weight:700;margin-top:3px;padding:4px 8px;background:#fffbeb;border-radius:6px;border:1px solid #f59e0b30;">⭐ Nuevo record!</div>', unsafe_allow_html=True)
-                    return
-                else:
-                    pct = ((best_val - current_val) / best_val * 100) if best_val else 0
-                    st.markdown(f'<div style="font-size:0.68rem;color:#6b7280;margin-top:3px;padding:4px 8px;background:#f9fafb;border-radius:6px;">⭐ Mejor: <b>{fmt(best_val) if is_money else f"{best_val:.1f}"}</b> ({month_label}) · -{pct:.1f}%</div>', unsafe_allow_html=True)
-            else:
-                # Lower is better (like food cost %)
-                if current_val <= best_val:
-                    st.markdown(f'<div style="font-size:0.68rem;color:#f59e0b;font-weight:700;margin-top:3px;padding:4px 8px;background:#fffbeb;border-radius:6px;border:1px solid #f59e0b30;">⭐ Nuevo record!</div>', unsafe_allow_html=True)
-                    return
-                else:
-                    pct = ((current_val - best_val) / best_val * 100) if best_val else 0
-                    st.markdown(f'<div style="font-size:0.68rem;color:#6b7280;margin-top:3px;padding:4px 8px;background:#f9fafb;border-radius:6px;">⭐ Mejor: <b>{fmt(best_val) if is_money else f"{best_val:.1f}%"}</b> ({month_label}) · +{pct:.1f}%</div>', unsafe_allow_html=True)
+        if higher_is_better:
+            if current_val >= best_val:
+                return "⭐ Nuevo record!"
+            pct = ((best_val - current_val) / best_val * 100) if best_val else 0
+            val_fmt = fmt(best_val) if is_money else f"{best_val:.1f}"
+            return f"⭐ Mejor: {val_fmt} ({month_label}) · -{pct:.1f}%"
+        else:
+            if current_val <= best_val:
+                return "⭐ Nuevo record!"
+            pct = ((current_val - best_val) / best_val * 100) if best_val else 0
+            val_fmt = fmt(best_val) if is_money else f"{best_val:.1f}%"
+            return f"⭐ Mejor: {val_fmt} ({month_label}) · +{pct:.1f}%"
 
     # Gauges
     g1, g2, g3, g4 = st.columns(4)
@@ -1751,9 +1744,9 @@ def render_kpis():
         st.plotly_chart(fig, use_container_width=True)
         fc_color = _kpi_color(food_cost_pct, (28, 35), (22, 40))
         st.markdown(kpi("🥩", "Food Cost", fmt_pct(food_cost_pct),
-                        f"Meta: 28-35% · {fmt(total_cost)}", fc_color), unsafe_allow_html=True)
+                        f"Meta: 28-35% · {fmt(total_cost)}", fc_color,
+                        record=kpi_record("food_cost_pct", food_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
         kpi_tip("<b>Costo de alimentos sobre ventas.</b> Mide cuanto de cada $100 que vendes se va en ingredientes. Si sube, revisa proveedores, merma o porciones.")
-        kpi_record("food_cost_pct", food_cost_pct, higher_is_better=False, is_money=False)
 
     with g2:
         fig = _gauge_chart("Labor Cost %", round(labor_cost_pct, 1), "%",
@@ -1764,9 +1757,9 @@ def render_kpis():
             st.caption("Ingresa sueldos para calcular Labor Cost")
         else:
             st.markdown(kpi("👨‍🍳", "Labor Cost", fmt_pct(labor_cost_pct),
-                            f"Meta: ≤30% · {fmt(sueldos)}", lc_color), unsafe_allow_html=True)
+                            f"Meta: ≤30% · {fmt(sueldos)}", lc_color,
+                            record=kpi_record("labor_cost_pct", labor_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
         kpi_tip("<b>Costo de personal sobre ventas.</b> Incluye sueldos, imposiciones y beneficios. Si es muy alto, necesitas vender mas o ajustar dotacion en turnos bajos.")
-        kpi_record("labor_cost_pct", labor_cost_pct, higher_is_better=False, is_money=False)
 
     with g3:
         fig = _gauge_chart("Rent Cost %", round(rent_cost_pct, 1), "%",
@@ -1777,9 +1770,9 @@ def render_kpis():
             st.caption("Ingresa arriendo para calcular Rent Cost")
         else:
             st.markdown(kpi("🏠", "Rent Cost", fmt_pct(rent_cost_pct),
-                            f"Meta: ≤8-10% · {fmt(arriendo_clp)}", rc_color), unsafe_allow_html=True)
+                            f"Meta: ≤8-10% · {fmt(arriendo_clp)}", rc_color,
+                            record=kpi_record("rent_cost_pct", rent_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
         kpi_tip("<b>Costo de arriendo sobre ventas.</b> Si supera el 10%, el local no genera suficiente venta para justificar su ubicacion. Renegociar arriendo o aumentar ventas.")
-        kpi_record("rent_cost_pct", rent_cost_pct, higher_is_better=False, is_money=False)
 
     with g4:
         fig = _gauge_chart("Prime Cost %", round(prime_cost_pct, 1), "%",
@@ -1787,9 +1780,9 @@ def render_kpis():
         st.plotly_chart(fig, use_container_width=True)
         pc_color = _kpi_color(prime_cost_pct, (50, 60), (45, 65))
         st.markdown(kpi("📊", "Prime Cost", fmt_pct(prime_cost_pct),
-                        "Meta: ≤60-65% (Food+Labor)", pc_color), unsafe_allow_html=True)
+                        "Meta: ≤60-65% (Food+Labor)", pc_color,
+                        record=kpi_record("prime_cost_pct", prime_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
         kpi_tip("<b>El KPI mas importante.</b> Suma Food Cost + Labor Cost. Si supera 65%, el negocio no es sostenible. Es la primera alarma que debes mirar cada mes.")
-        kpi_record("prime_cost_pct", prime_cost_pct, higher_is_better=False, is_money=False)
 
     st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
 
@@ -1797,15 +1790,15 @@ def render_kpis():
     f1, f2, f3 = st.columns(3)
     with f1:
         st.markdown(kpi("📈", "Margen Bruto", fmt(margen_bruto),
-                        f"Ventas: {fmt(total_ventas)} — Costo: {fmt(total_cost)}"), unsafe_allow_html=True)
+                        f"Ventas: {fmt(total_ventas)} — Costo: {fmt(total_cost)}",
+                        record=kpi_record("margen_bruto", margen_bruto, higher_is_better=True, is_money=True)), unsafe_allow_html=True)
         kpi_tip("<b>Lo que queda despues de pagar ingredientes.</b> De aqui salen sueldos, arriendo y gastos. Si es bajo, revisa precios de carta o costos de recetas.")
-        kpi_record("margen_bruto", margen_bruto, higher_is_better=True, is_money=True)
     with f2:
         res_color = "normal" if resultado_op > 0 else "red"
         st.markdown(kpi("🏦", "Resultado Operacional", fmt(resultado_op),
-                        f"Gastos fijos: {fmt(gastos_fijos)}", res_color), unsafe_allow_html=True)
+                        f"Gastos fijos: {fmt(gastos_fijos)}", res_color,
+                        record=kpi_record("resultado_op", resultado_op, higher_is_better=True, is_money=True)), unsafe_allow_html=True)
         kpi_tip("<b>Ganancia o perdida real del mes.</b> Ventas menos todos los costos (ingredientes + sueldos + arriendo + servicios + otros). Si es negativo, estas perdiendo plata.")
-        kpi_record("resultado_op", resultado_op, higher_is_better=True, is_money=True)
     with f3:
         st.markdown(kpi("⚖️", "Punto de Equilibrio", fmt(punto_equilibrio),
                         "Venta minima para cubrir costos fijos"), unsafe_allow_html=True)
@@ -1889,39 +1882,39 @@ def render_kpis():
     o1, o2, o3, o4 = st.columns(4)
     with o1:
         st.markdown(kpi("🎫", "Ticket Promedio", fmt(ticket_promedio),
-                        f"{num_orders} ordenes"), unsafe_allow_html=True)
+                        f"{num_orders} ordenes",
+                        record=kpi_record("ticket_promedio", ticket_promedio, higher_is_better=True, is_money=True)), unsafe_allow_html=True)
         kpi_tip("<b>Gasto promedio por cuenta.</b> Subir el ticket es la forma mas facil de aumentar ventas sin mas clientes. Estrategias: sugerencia de postres, maridaje, promociones por mesa.")
-        kpi_record("ticket_promedio", ticket_promedio, higher_is_better=True, is_money=True)
     with o2:
         st.markdown(kpi("👤", "Gasto por Cliente", fmt(gasto_cliente),
-                        f"{total_clients} clientes"), unsafe_allow_html=True)
+                        f"{total_clients} clientes",
+                        record=kpi_record("gasto_cliente", gasto_cliente, higher_is_better=True, is_money=True)), unsafe_allow_html=True)
         kpi_tip("<b>Cuanto gasta cada persona.</b> A diferencia del ticket (por mesa), este mide por persona. Util para comparar almuerzos (1-2 personas) vs cenas (grupos).")
-        kpi_record("gasto_cliente", gasto_cliente, higher_is_better=True, is_money=True)
     with o3:
         revpash_color = "normal" if revpash > 0 else "warn"
         st.markdown(kpi("💺", "RevPASH", fmt(revpash),
-                        "Ingreso por asiento por hora", revpash_color), unsafe_allow_html=True)
+                        "Ingreso por asiento por hora", revpash_color,
+                        record=kpi_record("revpash", revpash, higher_is_better=True, is_money=True)), unsafe_allow_html=True)
         kpi_tip("<b>Revenue Per Available Seat Hour.</b> Mide cuanto genera cada asiento por hora. Si es bajo en ciertos turnos, considera promociones en esos horarios o reducir mesas activas.")
-        kpi_record("revpash", revpash, higher_is_better=True, is_money=True)
     with o4:
         rotacion_str = f"{rotacion_mesas:.1f}"
         st.markdown(kpi("🔄", "Rotacion de Mesas", rotacion_str,
-                        f"{num_orders} ordenes / {total_tables} mesas"), unsafe_allow_html=True)
+                        f"{num_orders} ordenes / {total_tables} mesas",
+                        record=kpi_record("rotacion_mesas", rotacion_mesas, higher_is_better=True, is_money=False)), unsafe_allow_html=True)
         kpi_tip("<b>Cuantas veces se usa cada mesa.</b> Una rotacion de 2 significa que en promedio cada mesa atendio 2 servicios. Mejorar: reducir tiempos de servicio, optimizar reservas.")
-        kpi_record("rotacion_mesas", rotacion_mesas, higher_is_better=True, is_money=False)
 
     o5, o6, _, _ = st.columns(4)
     with o5:
         st.markdown(kpi("📐", "Venta por m²", fmt(venta_m2),
-                        f"{m2} m² de local"), unsafe_allow_html=True)
+                        f"{m2} m² de local",
+                        record=kpi_record("venta_m2", venta_m2, higher_is_better=True, is_money=True)), unsafe_allow_html=True)
         kpi_tip("<b>Productividad del espacio.</b> Cuanto genera cada metro cuadrado. Si es bajo, el local esta subutilizado. Opciones: delivery, eventos, reorganizar layout.")
-        kpi_record("venta_m2", venta_m2, higher_is_better=True, is_money=True)
     with o6:
         venta_diaria = total_ventas / dias_periodo if dias_periodo else 0
         st.markdown(kpi("📅", "Venta Diaria Prom.", fmt(venta_diaria),
-                        f"{dias_periodo} dias operados"), unsafe_allow_html=True)
+                        f"{dias_periodo} dias operados",
+                        record=kpi_record("venta_diaria", venta_diaria, higher_is_better=True, is_money=True)), unsafe_allow_html=True)
         kpi_tip("<b>Meta diaria de referencia.</b> Divide tu punto de equilibrio por los dias del mes para saber cuanto necesitas vender cada dia como minimo.")
-        kpi_record("venta_diaria", total_ventas / dias_periodo if dias_periodo else 0, higher_is_better=True, is_money=True)
 
     # Guardar KPIs del mes en historial
     _save_kpi_history(kpi_year, selected_month, {
