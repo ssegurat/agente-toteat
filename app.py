@@ -6,7 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from dotenv import load_dotenv
 from toteat_api import ToteatAPI
-from tools import TOOLS, execute_tool
+from tools import TOOLS, execute_tool, execute_tool_multi
 from datetime import date, timedelta
 import time
 
@@ -544,43 +544,43 @@ def _chunked_api_call(api_fn, date_from: str, date_to: str):
     return {"data": all_data}
 
 @st.cache_data(ttl=300, show_spinner=False)
-def cached_get_sales(_client, date_from: str, date_to: str):
+def cached_get_sales(_client, date_from: str, date_to: str, local_key: str = "default"):
     """Ventas cacheadas por 5 minutos. Divide en chunks de 15 dias si el rango es mayor."""
     return _chunked_api_call(_client.get_sales, date_from, date_to)
 
 @st.cache_data(ttl=300, show_spinner=False)
-def cached_get_products(_client):
+def cached_get_products(_client, local_key: str = "default"):
     """Productos cacheados por 5 minutos."""
     return _client.get_products()
 
 @st.cache_data(ttl=60, show_spinner=False)
-def cached_get_shift(_client):
+def cached_get_shift(_client, local_key: str = "default"):
     """Estado de turno cacheado por 1 minuto."""
     return _client.get_shift_status()
 
 @st.cache_data(ttl=60, show_spinner=False)
-def cached_get_tables(_client):
+def cached_get_tables(_client, local_key: str = "default"):
     """Mesas cacheadas por 1 minuto."""
     return _client.get_tables()
 
 @st.cache_data(ttl=120, show_spinner=False)
-def cached_get_cancellations(_client, date_from: str, date_to: str):
+def cached_get_cancellations(_client, date_from: str, date_to: str, local_key: str = "default"):
     return _chunked_api_call(_client.get_cancellation_report, date_from, date_to)
 
 @st.cache_data(ttl=300, show_spinner=False)
-def cached_get_fiscal_docs(_client, date_from: str, date_to: str):
+def cached_get_fiscal_docs(_client, date_from: str, date_to: str, local_key: str = "default"):
     return _chunked_api_call(_client.get_fiscal_documents, date_from, date_to)
 
 @st.cache_data(ttl=120, show_spinner=False)
-def cached_get_collection(_client, date_str: str):
+def cached_get_collection(_client, date_str: str, local_key: str = "default"):
     return _client.get_collection(date_str)
 
 @st.cache_data(ttl=300, show_spinner=False)
-def cached_get_inventory(_client, date_from: str, date_to: str):
+def cached_get_inventory(_client, date_from: str, date_to: str, local_key: str = "default"):
     return _client.get_inventory_state(date_from, date_to)
 
 @st.cache_data(ttl=300, show_spinner=False)
-def cached_get_accounting(_client, date_from: str, date_to: str):
+def cached_get_accounting(_client, date_from: str, date_to: str, local_key: str = "default"):
     return _client.get_accounting_movements(date_from, date_to)
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -714,8 +714,8 @@ def setup_sidebar():
 # DASHBOARD
 # ──────────────────────────────────────────────
 
-def render_dashboard():
-    client = st.session_state.toteat_client
+def render_dashboard(client=None, local_key="default", local_name=None):
+    client = client or st.session_state.toteat_client
     if not client:
         st.markdown(f"""<div style="text-align:center;padding:80px 20px;">
             <div style="font-size:3rem;">🍽️</div>
@@ -737,6 +737,9 @@ def render_dashboard():
         </div>
         <div class="toteat-date">{today.strftime('%A %d de %B, %Y')}</div>
     </div>""", unsafe_allow_html=True)
+
+    if local_name:
+        st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:#ff4235;margin-bottom:8px;">{local_name}</div>', unsafe_allow_html=True)
 
     # ══════════════════════════════════════════
     # VENTAS (arriba de todo)
@@ -763,7 +766,7 @@ def render_dashboard():
     # Cargar ventas con cache
     with st.spinner("Analizando ventas..."):
         try:
-            raw = cached_get_sales(client, sf.isoformat(), st2.isoformat())
+            raw = cached_get_sales(client, sf.isoformat(), st2.isoformat(), local_key=local_key)
             data = raw.get("data", [])
             s = process_sales(data)
 
@@ -791,7 +794,7 @@ def render_dashboard():
             if prev_from and prev_to:
                 prev_label = f"vs {prev_from.strftime('%d/%m/%Y')} - {prev_to.strftime('%d/%m/%Y')}"
                 try:
-                    raw_prev = cached_get_sales(client, prev_from.isoformat(), prev_to.isoformat())
+                    raw_prev = cached_get_sales(client, prev_from.isoformat(), prev_to.isoformat(), local_key=local_key)
                     data_prev = raw_prev.get("data", [])
                     prev = process_sales(data_prev)
                     if not prev:
@@ -1000,11 +1003,11 @@ def render_dashboard():
 
     shift_data, table_data = {}, []
     try:
-        shift_data = cached_get_shift(client).get("data", {})
+        shift_data = cached_get_shift(client, local_key=local_key).get("data", {})
     except Exception:
         pass
     try:
-        table_data = cached_get_tables(client).get("data", [])
+        table_data = cached_get_tables(client, local_key=local_key).get("data", [])
     except Exception:
         pass
 
@@ -1055,7 +1058,7 @@ def render_dashboard():
     sec("📄", "Documentos Fiscales")
     try:
         with st.spinner("Cargando documentos fiscales..."):
-            raw_fiscal = cached_get_fiscal_docs(client, sf.isoformat(), st2.isoformat())
+            raw_fiscal = cached_get_fiscal_docs(client, sf.isoformat(), st2.isoformat(), local_key=local_key)
             if isinstance(raw_fiscal, list):
                 fiscal_data = raw_fiscal
             elif isinstance(raw_fiscal, dict):
@@ -1146,7 +1149,7 @@ def render_dashboard():
     sec("📋", "Menu del Restaurante")
     try:
         with st.spinner(""):
-            products = cached_get_products(client)
+            products = cached_get_products(client, local_key=local_key)
             data = products.get("data", products)
             if isinstance(data, list):
                 for cat in data:
@@ -1177,11 +1180,11 @@ def render_dashboard():
 
         with st.spinner("Consultando recaudacion..."):
             # Obtener medios de pago desde las ventas del dia
-            raw_coll_sales = cached_get_sales(client, coll_date.isoformat(), coll_date.isoformat())
+            raw_coll_sales = cached_get_sales(client, coll_date.isoformat(), coll_date.isoformat(), local_key=local_key)
             coll_sales_data = raw_coll_sales.get("data", [])
 
             # Obtener info de cajas desde collection API
-            raw_coll = cached_get_collection(client, coll_date.isoformat())
+            raw_coll = cached_get_collection(client, coll_date.isoformat(), local_key=local_key)
             coll_data = raw_coll.get("data", raw_coll) if isinstance(raw_coll, dict) else raw_coll
 
             # Extraer medios de pago desde ventas
@@ -1265,7 +1268,7 @@ def render_dashboard():
     sec("📦", "Estado de Inventario")
     try:
         with st.spinner("Consultando inventario..."):
-            raw_inv = cached_get_inventory(client, sf.isoformat(), st2.isoformat())
+            raw_inv = cached_get_inventory(client, sf.isoformat(), st2.isoformat(), local_key=local_key)
             inv_data = raw_inv.get("data", raw_inv) if isinstance(raw_inv, dict) else raw_inv
 
             if not inv_data:
@@ -1350,7 +1353,7 @@ def render_dashboard():
     sec("📒", "Movimientos Contables")
     try:
         with st.spinner("Consultando movimientos contables..."):
-            raw_acc = cached_get_accounting(client, sf.isoformat(), st2.isoformat())
+            raw_acc = cached_get_accounting(client, sf.isoformat(), st2.isoformat(), local_key=local_key)
             acc_data = raw_acc.get("data", raw_acc) if isinstance(raw_acc, dict) else raw_acc
 
             if not acc_data:
@@ -1436,7 +1439,7 @@ def render_dashboard():
 # CHAT
 # ──────────────────────────────────────────────
 
-def render_chat():
+def render_chat(client=None, local_key="default", local_name=None):
     if not st.session_state.anthropic_client:
         st.markdown(f"""<div style="text-align:center;padding:60px 20px;">
             <div style="font-size:3rem;">🤖</div>
@@ -1444,12 +1447,21 @@ def render_chat():
             <div style="color:{TEXT_SECONDARY};margin-top:8px;">Agrega tu Anthropic API Key en la barra lateral.</div>
         </div>""", unsafe_allow_html=True)
         return
-    if not st.session_state.toteat_client:
+    chat_client = client or st.session_state.toteat_client
+    if not chat_client:
         st.warning("Configura Toteat primero.")
         return
 
     import anthropic
-    for msg in st.session_state.messages:
+
+    local_context = f"\nEstas analizando datos del local: {local_name}." if local_name else ""
+    system_prompt = SYSTEM_PROMPT + local_context
+
+    msg_key = f"messages_{local_key}" if local_key != "default" else "messages"
+    if msg_key not in st.session_state:
+        st.session_state[msg_key] = []
+
+    for msg in st.session_state[msg_key]:
         if msg["role"] == "user" and isinstance(msg["content"], str):
             with st.chat_message("user"):
                 st.markdown(msg["content"])
@@ -1464,30 +1476,31 @@ def render_chat():
                 with st.chat_message("assistant"):
                     st.markdown(text)
 
-    if prompt := st.chat_input("Pregunta sobre tu restaurante..."):
+    chat_input_key = f"chat_{local_key}" if local_key != "default" else "chat_default"
+    if prompt := st.chat_input("Pregunta sobre tu restaurante...", key=chat_input_key):
         with st.chat_message("user"):
             st.markdown(prompt)
-        api_messages = list(st.session_state.messages)
+        api_messages = list(st.session_state[msg_key])
         api_messages.append({"role": "user", "content": prompt})
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state[msg_key].append({"role": "user", "content": prompt})
         with st.chat_message("assistant"):
             with st.spinner("Pensando..."):
                 try:
                     response = st.session_state.anthropic_client.messages.create(
                         model="claude-sonnet-4-20250514", max_tokens=4096,
-                        system=SYSTEM_PROMPT, tools=TOOLS, messages=api_messages)
+                        system=system_prompt, tools=TOOLS, messages=api_messages)
                     while response.stop_reason == "tool_use":
                         tbs = [b for b in response.content if b.type == "tool_use"]
                         api_messages.append({"role": "assistant", "content": response.content})
                         trs = [{"type": "tool_result", "tool_use_id": tb.id,
-                                "content": execute_tool(tb.name, tb.input, st.session_state.toteat_client)} for tb in tbs]
+                                "content": execute_tool(tb.name, tb.input, chat_client)} for tb in tbs]
                         api_messages.append({"role": "user", "content": trs})
                         response = st.session_state.anthropic_client.messages.create(
                             model="claude-sonnet-4-20250514", max_tokens=4096,
-                            system=SYSTEM_PROMPT, tools=TOOLS, messages=api_messages)
+                            system=system_prompt, tools=TOOLS, messages=api_messages)
                     answer = next((b.text for b in response.content if hasattr(b, "text")), "Sin respuesta.")
                     st.markdown(answer)
-                    st.session_state.messages.append({"role": "assistant", "content": answer})
+                    st.session_state[msg_key].append({"role": "assistant", "content": answer})
                 except Exception as e:
                     st.error(f"Error: {e}")
 
@@ -1543,8 +1556,8 @@ def _gauge_chart(title, value, suffix, green_range, red_threshold, max_val=100):
     return fig
 
 
-def render_kpis():
-    client = st.session_state.toteat_client
+def render_kpis(client=None, local_key="default", local_name=None):
+    client = client or st.session_state.toteat_client
     if not client:
         st.markdown(f"""<div style="text-align:center;padding:80px 20px;">
             <div style="font-size:3rem;">📈</div>
@@ -1651,7 +1664,7 @@ def render_kpis():
     # ── Cargar datos del mes seleccionado ──
     with st.spinner(f"Cargando datos de {kpi_month} {kpi_year}..."):
         try:
-            raw = cached_get_sales(client, first_of_month.isoformat(), end_of_month.isoformat())
+            raw = cached_get_sales(client, first_of_month.isoformat(), end_of_month.isoformat(), local_key=local_key)
             data = raw.get("data", [])
             s = process_sales(data)
         except Exception as e:
@@ -1667,7 +1680,7 @@ def render_kpis():
         # Cargar mesas para capacidad
         table_data = []
         try:
-            table_data = cached_get_tables(client).get("data", [])
+            table_data = cached_get_tables(client, local_key=local_key).get("data", [])
         except Exception:
             pass
 
@@ -1963,19 +1976,908 @@ def render_kpis():
 
 
 # ──────────────────────────────────────────────
+# CONSOLIDATED VIEWS (stubs)
+# ──────────────────────────────────────────────
+
+def render_consolidated_dashboard(clients, locals_config, allowed_locals):
+    from multi_local import get_local_config
+
+    today = date.today()
+    n_locals = len(allowed_locals)
+
+    # ── Header ──
+    st.markdown(f"""<div class="toteat-header">
+        <div class="toteat-brand">
+            <div class="toteat-logo-icon">t</div>
+            <div>
+                <div class="toteat-title">Red Completa — <span>{n_locals} locales</span></div>
+                <div class="toteat-subtitle">Vista consolidada de todos los restaurantes</div>
+            </div>
+        </div>
+        <div class="toteat-date">{today.strftime('%A %d de %B, %Y')}</div>
+    </div>""", unsafe_allow_html=True)
+
+    # ── Date selector ──
+    sec("💰", "Analisis de Ventas — Red Completa")
+
+    col_f, col_t, col_cmp, col_b = st.columns([2, 2, 2, 1])
+    with col_f:
+        sf = st.date_input("Desde", value=today, key="sf_red")
+    with col_t:
+        st2 = st.date_input("Hasta", value=today, key="st_red")
+    with col_cmp:
+        compare_opt = st.selectbox("Comparar con", [
+            "Periodo anterior",
+            "Mismo periodo mes anterior",
+            "Mismo periodo año anterior",
+            "Sin comparar",
+        ], key="cmp_red")
+    with col_b:
+        st.write("")
+        st.write("")
+        st.button("Actualizar", key="go_sales_red")
+
+    # ── Fetch and combine sales from all locals ──
+    with st.spinner("Cargando datos de todos los locales..."):
+        try:
+            combined_data = []
+            per_local_stats = {}
+            first_local = True
+            for key in allowed_locals:
+                try:
+                    if not first_local:
+                        time.sleep(1)
+                    raw = cached_get_sales(clients[key], sf.isoformat(), st2.isoformat(), local_key=key)
+                    local_data = raw.get("data", [])
+                    combined_data.extend(local_data)
+                    local_stats = process_sales(local_data)
+                    if local_stats:
+                        per_local_stats[key] = local_stats
+                    first_local = False
+                except Exception:
+                    first_local = False
+
+            s = process_sales(combined_data)
+
+            if not s:
+                st.info("Sin ventas en este periodo para ningun local.")
+                return
+
+            # ── Comparative period ──
+            prev = None
+            prev_label = ""
+            prev_from = None
+            prev_to = None
+            period_days = (st2 - sf).days + 1
+
+            if compare_opt == "Periodo anterior":
+                prev_to = sf - timedelta(days=1)
+                prev_from = prev_to - timedelta(days=period_days - 1)
+            elif compare_opt == "Mismo periodo mes anterior":
+                prev_from = _subtract_months(sf, 1)
+                prev_to = _subtract_months(st2, 1)
+            elif compare_opt == "Mismo periodo año anterior":
+                prev_from = _subtract_years(sf, 1)
+                prev_to = _subtract_years(st2, 1)
+
+            if prev_from and prev_to:
+                prev_label = f"vs {prev_from.strftime('%d/%m/%Y')} - {prev_to.strftime('%d/%m/%Y')}"
+                try:
+                    prev_combined = []
+                    first_prev = True
+                    for key in allowed_locals:
+                        try:
+                            if not first_prev:
+                                time.sleep(1)
+                            raw_prev = cached_get_sales(clients[key], prev_from.isoformat(), prev_to.isoformat(), local_key=key)
+                            prev_combined.extend(raw_prev.get("data", []))
+                            first_prev = False
+                        except Exception:
+                            first_prev = False
+                    prev = process_sales(prev_combined)
+                    if not prev:
+                        st.caption(f"Comparando {prev_label} — sin datos en el periodo anterior")
+                except Exception as e:
+                    st.caption(f"Comparando {prev_label} — no se pudo obtener datos: {e}")
+                    prev = None
+
+            # Deltas
+            d_sales = calc_delta(s["total_sales"], prev["total_sales"]) if prev else None
+            a_sales = (s["total_sales"] - prev["total_sales"]) if prev else None
+            d_orders = calc_delta(s["num_orders"], prev["num_orders"]) if prev else None
+            a_orders = (s["num_orders"] - prev["num_orders"]) if prev else None
+            d_ticket = calc_delta(s["avg_ticket"], prev["avg_ticket"]) if prev else None
+            a_ticket = (s["avg_ticket"] - prev["avg_ticket"]) if prev else None
+            d_clients = calc_delta(s["total_clients"], prev["total_clients"]) if prev else None
+            a_clients = (s["total_clients"] - prev["total_clients"]) if prev else None
+            d_margin = calc_delta(s["margin"], prev["margin"]) if prev else None
+            d_tips = calc_delta(s["total_gratuity"], prev["total_gratuity"]) if prev else None
+            a_tips = (s["total_gratuity"] - prev["total_gratuity"]) if prev else None
+
+            if prev_label:
+                st.markdown(f"<div style='font-size:0.78rem;color:#6b7280;margin-bottom:8px;font-weight:600;'>Comparando {prev_label}</div>", unsafe_allow_html=True)
+
+            # ── KPIs ──
+            c1, c2, c3, c4, c5, c6 = st.columns(6)
+            with c1:
+                st.markdown(kpi("💵", "Venta Neta", fmt(s["total_sales"]), delta=d_sales, delta_abs=a_sales), unsafe_allow_html=True)
+            with c2:
+                st.markdown(kpi("🧾", "Ordenes", str(s["num_orders"]), delta=d_orders), unsafe_allow_html=True)
+            with c3:
+                st.markdown(kpi("🎫", "Ticket Prom.", fmt(s["avg_ticket"]), delta=d_ticket, delta_abs=a_ticket), unsafe_allow_html=True)
+            with c4:
+                st.markdown(kpi("👥", "Clientes", str(s["total_clients"]),
+                                f"{fmt(s['avg_per_client'])} x persona", delta=d_clients), unsafe_allow_html=True)
+            with c5:
+                st.markdown(kpi("📊", "Margen", fmt_pct(s["margin"]),
+                                f"Costo: {fmt(s['total_cost'])}", "warn" if s["margin"] < 60 else "normal",
+                                delta=d_margin), unsafe_allow_html=True)
+            with c6:
+                st.markdown(kpi("💝", "Propinas", fmt(s["total_gratuity"]),
+                                f"Desc: {fmt(s['total_discounts'])}" if s["total_discounts"] else None,
+                                "red" if s["total_discounts"] > 0 else "normal",
+                                delta=d_tips, delta_abs=a_tips), unsafe_allow_html=True)
+
+            st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+
+            # ── Row 1: Ventas x Hora + Formas de Pago ──
+            ch1, ch2 = st.columns(2)
+
+            with ch1:
+                if s["hourly"]:
+                    df_h = pd.DataFrame([{"Hora": h, "Venta": v["total"], "Ordenes": v["orders"]}
+                                         for h, v in sorted(s["hourly"].items())])
+                    fig = go.Figure(go.Bar(
+                        x=df_h["Hora"].apply(lambda x: f"{x}:00"),
+                        y=df_h["Venta"],
+                        marker=dict(color=df_h["Venta"], colorscale=COLOR_SCALE, cornerradius=4),
+                        hovertemplate="<b>%{x}</b><br>Venta: $%{y:,.0f}<extra></extra>",
+                    ))
+                    fig.update_layout(title="Ventas por Hora (Red)", height=300, **PLOTLY_LAYOUT)
+                    st.plotly_chart(fig, use_container_width=True)
+
+            with ch2:
+                if s["payments"]:
+                    df_p = pd.DataFrame([{"Metodo": k, "Total": v["total"], "Qty": v["count"]}
+                                         for k, v in s["payments"].items()]).sort_values("Total", ascending=False)
+                    fig = go.Figure(go.Pie(
+                        labels=df_p["Metodo"], values=df_p["Total"],
+                        hole=0.55, textinfo="label+percent", textfont=dict(color="#1a1a1a", size=12), textposition="outside",
+                        marker=dict(colors=CHART_COLORS),
+                        hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
+                    ))
+                    fig.update_layout(title="Formas de Pago (Red)", height=300, showlegend=False, **PLOTLY_LAYOUT)
+                    st.plotly_chart(fig, use_container_width=True)
+
+            # ── Row 2: Familias + Canales ──
+            ch3, ch4 = st.columns(2)
+
+            with ch3:
+                if s["families"]:
+                    df_f = pd.DataFrame([{"Familia": k, "Venta": v["revenue"], "Qty": v["qty"],
+                                          "Costo": v["cost"]} for k, v in s["families"].items()])
+                    df_f["Margen"] = ((df_f["Venta"] - df_f["Costo"]) / df_f["Venta"] * 100).round(1)
+                    df_f = df_f.sort_values("Venta", ascending=True).tail(15)
+
+                    fig = go.Figure(go.Bar(
+                        y=df_f["Familia"], x=df_f["Venta"], orientation="h",
+                        marker=dict(color=df_f["Venta"], colorscale=COLOR_SCALE, cornerradius=4),
+                        hovertemplate="<b>%{y}</b><br>$%{x:,.0f}<extra></extra>",
+                    ))
+                    fig.update_layout(title="Top 15 Familias (Red)", height=420, **PLOTLY_LAYOUT)
+                    st.plotly_chart(fig, use_container_width=True)
+
+            with ch4:
+                salon_t = s["channels"]["Salon"]["total"]
+                deliv_t = s["channels"]["Delivery"]["total"]
+
+                fig = go.Figure(go.Pie(
+                    labels=["Salon", "Delivery"],
+                    values=[salon_t, deliv_t],
+                    hole=0.6, textinfo="label+percent", textfont=dict(color="#1a1a1a", size=12),
+                    marker=dict(colors=[TOTEAT_RED, WARNING]),
+                    hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
+                ))
+                fig.update_layout(title="Salon vs Delivery (Red)", height=280, showlegend=False, **PLOTLY_LAYOUT)
+                st.plotly_chart(fig, use_container_width=True)
+
+                if s["delivery_detail"]:
+                    df_del = pd.DataFrame([{"Canal": k, "Ordenes": v["orders"], "Venta": v["total"]}
+                                           for k, v in s["delivery_detail"].items()]).sort_values("Venta", ascending=False)
+                    colors_del = [WARNING, "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"]
+                    fig2 = go.Figure(go.Bar(
+                        x=df_del["Canal"], y=df_del["Venta"],
+                        marker=dict(color=colors_del[:len(df_del)], cornerradius=4),
+                        text=df_del.apply(lambda r: f"{r['Ordenes']} ord. · {fmt(r['Venta'])}", axis=1),
+                        textposition="outside", textfont=dict(color="#374151", size=11),
+                        hovertemplate="<b>%{x}</b><br>$%{y:,.0f}<extra></extra>",
+                    ))
+                    layout = {**PLOTLY_LAYOUT}
+                    layout["margin"] = dict(l=16, r=16, t=40, b=16)
+                    fig2.update_layout(title="Detalle Delivery (Red)", height=300,
+                                       yaxis_range=[0, df_del["Venta"].max() * 1.25], **layout)
+                    st.plotly_chart(fig2, use_container_width=True)
+
+            # ── Top Productos ──
+            sec("🏆", "Top 15 Productos (Red)")
+            if s["products"]:
+                df_prod = pd.DataFrame([{"Producto": k, "Cantidad": v["qty"], "Venta": v["revenue"],
+                                         "Costo": v["cost"], "Familia": v["family"]} for k, v in s["products"].items()])
+                df_prod["Margen %"] = ((df_prod["Venta"] - df_prod["Costo"]) / df_prod["Venta"] * 100).round(1)
+                df_prod = df_prod.sort_values("Venta", ascending=False).head(15)
+
+                fig = go.Figure(go.Bar(
+                    x=df_prod["Producto"], y=df_prod["Venta"],
+                    marker=dict(color=df_prod["Venta"], colorscale=COLOR_SCALE, cornerradius=4),
+                    text=df_prod["Cantidad"].apply(lambda x: f"{x} unidades"),
+                    textposition="outside", textfont=dict(color="#374151", size=11),
+                    hovertemplate="<b>%{x}</b><br>$%{y:,.0f}<extra></extra>",
+                ))
+                fig.update_layout(height=340, **PLOTLY_LAYOUT, xaxis_tickangle=-45)
+                st.plotly_chart(fig, use_container_width=True)
+
+                with st.expander("Ver tabla de productos con margen"):
+                    ds = df_prod.copy()
+                    ds["Venta"] = ds["Venta"].apply(fmt_full)
+                    ds["Costo"] = ds["Costo"].apply(fmt_full)
+                    st.dataframe(ds, use_container_width=True, hide_index=True)
+
+            # ── Meseros ──
+            sec("👨‍🍳", "Performance por Mesero (Red)")
+            if s["waiters"]:
+                df_w = pd.DataFrame([{"Mesero": k, "Ordenes": v["orders"], "Venta": v["total"],
+                                      "Clientes": v["clients"], "Propina": v["tip"]}
+                                     for k, v in s["waiters"].items() if k != "N/A"])
+                if not df_w.empty:
+                    df_w["Ticket Prom."] = (df_w["Venta"] / df_w["Ordenes"]).round(0)
+                    df_w = df_w.sort_values("Venta", ascending=True)
+
+                    fig = go.Figure(go.Bar(
+                        y=df_w["Mesero"], x=df_w["Venta"], orientation="h",
+                        marker=dict(color=df_w["Venta"], colorscale=COLOR_SCALE, cornerradius=4),
+                        hovertemplate="<b>%{y}</b><br>$%{x:,.0f}<extra></extra>",
+                    ))
+                    fig.update_layout(title="Ranking de Ventas (Red)", height=max(280, len(df_w) * 40), **PLOTLY_LAYOUT)
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    with st.expander("Ver tabla de meseros"):
+                        ws = df_w.sort_values("Venta", ascending=False).copy()
+                        for col in ["Venta", "Propina", "Ticket Prom."]:
+                            ws[col] = ws[col].apply(fmt_full)
+                        st.dataframe(ws, use_container_width=True, hide_index=True)
+
+            # ══════════════════════════════════════════
+            # COMPARATIVA POR LOCAL
+            # ══════════════════════════════════════════
+            sec("🏪", "Comparativa por Local")
+
+            if per_local_stats:
+                comp_rows = []
+                for key in allowed_locals:
+                    if key in per_local_stats:
+                        ls = per_local_stats[key]
+                        local_name = locals_config[key].get("name", key)
+                        comp_rows.append({
+                            "Local": local_name,
+                            "Venta Neta": ls["total_sales"],
+                            "Ordenes": ls["num_orders"],
+                            "Ticket Prom.": round(ls["avg_ticket"], 0),
+                            "Clientes": ls["total_clients"],
+                            "Margen %": round(ls["margin"], 1),
+                        })
+
+                if comp_rows:
+                    df_comp = pd.DataFrame(comp_rows)
+
+                    # Horizontal bar chart ranking by sales
+                    df_bar = df_comp.sort_values("Venta Neta", ascending=True)
+                    fig = go.Figure(go.Bar(
+                        y=df_bar["Local"], x=df_bar["Venta Neta"], orientation="h",
+                        marker=dict(color=df_bar["Venta Neta"], colorscale=COLOR_SCALE, cornerradius=4),
+                        text=df_bar["Venta Neta"].apply(fmt),
+                        textposition="outside", textfont=dict(color="#374151", size=11),
+                        hovertemplate="<b>%{y}</b><br>$%{x:,.0f}<extra></extra>",
+                    ))
+                    fig.update_layout(title="Ranking de Locales por Venta", height=max(280, len(df_bar) * 50), **PLOTLY_LAYOUT)
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    # Table
+                    df_display = df_comp.copy()
+                    df_display["Venta Neta"] = df_display["Venta Neta"].apply(fmt_full)
+                    df_display["Ticket Prom."] = df_display["Ticket Prom."].apply(fmt_full)
+                    df_display["Margen %"] = df_display["Margen %"].apply(lambda x: f"{x}%")
+                    st.dataframe(df_display, use_container_width=True, hide_index=True)
+
+            # ══════════════════════════════════════════
+            # ESTADO EN VIVO POR LOCAL
+            # ══════════════════════════════════════════
+            sec("🏪", "Estado en Vivo por Local")
+
+            for key in allowed_locals:
+                local_name = locals_config[key].get("name", key)
+                try:
+                    time.sleep(1)
+                    shift = cached_get_shift(clients[key], local_key=key).get("data", {})
+                    tables = cached_get_tables(clients[key], local_key=key).get("data", [])
+
+                    shift_status = shift.get("status", "closed")
+                    sd = shift.get("date", "")
+                    shift_time = sd.split("T")[1][:5] if sd and "T" in sd else ""
+                    badge = '<span class="badge-open">ABIERTO</span>' if shift_status == "open" else '<span class="badge-closed">CERRADO</span>'
+
+                    total_t = len(tables)
+                    avail_t = sum(1 for t in tables if t.get("available"))
+                    occup_t = total_t - avail_t
+                    occup_pct = round(occup_t / total_t * 100) if total_t else 0
+
+                    c1, c2, c3, c4 = st.columns(4)
+                    with c1:
+                        st.markdown(kpi("🏪", local_name, badge, f"Desde {shift_time}" if shift_time else None), unsafe_allow_html=True)
+                    with c2:
+                        st.markdown(kpi("🪑", "Ocupacion", f"{occup_t}/{total_t}",
+                                        f"{occup_pct}% ocupado", "warn" if occup_pct > 75 else "normal"), unsafe_allow_html=True)
+                    with c3:
+                        st.markdown(kpi("✅", "Disponibles", str(avail_t)), unsafe_allow_html=True)
+                    with c4:
+                        total_cap = sum(t.get("capacity", 0) for t in tables)
+                        st.markdown(kpi("👥", "Capacidad", str(total_cap), f"{total_t} mesas"), unsafe_allow_html=True)
+                except Exception:
+                    st.caption(f"{local_name}: No se pudo obtener estado en vivo")
+
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+
+def render_consolidated_kpis(clients, locals_config, allowed_locals):
+    from multi_local import get_local_config
+    import calendar
+
+    today = date.today()
+    n_locals = len(allowed_locals)
+
+    # ── Header + Month selector ──
+    col_hdr, col_month, col_year = st.columns([4, 1, 1])
+    with col_hdr:
+        st.markdown(f"""<div class="toteat-brand" style="padding:12px 0;">
+            <div class="toteat-logo-icon">t</div>
+            <div>
+                <div class="toteat-title">KPIs <span>Gastronomicos</span> — Red ({n_locals} locales)</div>
+                <div class="toteat-subtitle">Indicadores consolidados de gestion</div>
+            </div>
+        </div>""", unsafe_allow_html=True)
+    with col_month:
+        meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                 "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        kpi_month = st.selectbox("Mes", meses, index=today.month - 1, key="kpi_month_red")
+        selected_month = meses.index(kpi_month) + 1
+    with col_year:
+        kpi_year = st.number_input("Ano", min_value=2020, max_value=today.year,
+                                    value=today.year, step=1, key="kpi_year_red")
+
+    first_of_month = date(kpi_year, selected_month, 1)
+    last_day = calendar.monthrange(kpi_year, selected_month)[1]
+    end_of_month = date(kpi_year, selected_month, last_day)
+
+    is_current_month = (kpi_year == today.year and selected_month == today.month)
+    partial_note = f' — <span style="color:{WARNING};">Mes en curso, datos parciales al {today.strftime("%d/%m")}</span>' if is_current_month else ""
+
+    st.markdown(f"""<div style="font-size:0.8rem;color:{TEXT_SECONDARY};margin-bottom:4px;font-weight:600;">
+        Analizando: {kpi_month} {kpi_year} (01 al {last_day}/{selected_month:02d}/{kpi_year}) — {last_day} dias — {n_locals} locales{partial_note}
+    </div>""", unsafe_allow_html=True)
+
+    # ── UF value ──
+    uf_val = get_uf_value()
+    uf_display = f"${uf_val:,.0f} CLP".replace(",", ".") if uf_val else "No disponible"
+
+    # ── Aggregate operational params ──
+    sec("💸", "Parametros Operativos Consolidados")
+
+    st.markdown(f"""<div style="font-size:0.8rem;color:{TEXT_SECONDARY};margin-bottom:8px;">
+        Valor UF hoy: <b>{uf_display}</b> — Parametros configurados por local en la seccion individual.
+    </div>""", unsafe_allow_html=True)
+
+    total_sueldos = sum(get_local_config(k, locals_config).get("sueldos", 0) for k in allowed_locals)
+    total_arriendo_uf = sum(get_local_config(k, locals_config).get("arriendo_uf", 0.0) for k in allowed_locals)
+    total_arriendo_clp = total_arriendo_uf * uf_val if uf_val else 0
+    total_servicios = sum(get_local_config(k, locals_config).get("servicios", 0) for k in allowed_locals)
+    total_otros = sum(get_local_config(k, locals_config).get("otros", 0) for k in allowed_locals)
+    total_m2 = sum(get_local_config(k, locals_config).get("m2", 100) for k in allowed_locals)
+    total_empleados = sum(get_local_config(k, locals_config).get("num_empleados", 10) for k in allowed_locals)
+    gastos_fijos = total_sueldos + total_arriendo_clp + total_servicios + total_otros
+
+    # Show per-local params table (read-only)
+    params_rows = []
+    for key in allowed_locals:
+        cfg = get_local_config(key, locals_config)
+        local_name = locals_config[key].get("name", key)
+        arr_clp = cfg.get("arriendo_uf", 0.0) * uf_val if uf_val else 0
+        params_rows.append({
+            "Local": local_name,
+            "Sueldos": fmt_full(cfg.get("sueldos", 0)),
+            "Arriendo (UF)": f"{cfg.get('arriendo_uf', 0.0):.1f}",
+            "Arriendo (CLP)": fmt_full(arr_clp),
+            "Servicios": fmt_full(cfg.get("servicios", 0)),
+            "Otros": fmt_full(cfg.get("otros", 0)),
+            "Horas Op.": cfg.get("horas_op", 12),
+            "m2": cfg.get("m2", 100),
+            "Empleados": cfg.get("num_empleados", 10),
+        })
+
+    # Totals row
+    params_rows.append({
+        "Local": "TOTAL RED",
+        "Sueldos": fmt_full(total_sueldos),
+        "Arriendo (UF)": f"{total_arriendo_uf:.1f}",
+        "Arriendo (CLP)": fmt_full(total_arriendo_clp),
+        "Servicios": fmt_full(total_servicios),
+        "Otros": fmt_full(total_otros),
+        "Horas Op.": "—",
+        "m2": total_m2,
+        "Empleados": total_empleados,
+    })
+
+    with st.expander("Ver parametros por local"):
+        st.dataframe(params_rows, use_container_width=True, hide_index=True)
+
+    # KPI summary cards for totals
+    gc1, gc2, gc3, gc4 = st.columns(4)
+    with gc1:
+        st.markdown(kpi("👨‍🍳", "Sueldos Total", fmt(total_sueldos), f"{total_empleados} empleados"), unsafe_allow_html=True)
+    with gc2:
+        st.markdown(kpi("🏠", "Arriendo Total", fmt(total_arriendo_clp), f"{total_arriendo_uf:.1f} UF"), unsafe_allow_html=True)
+    with gc3:
+        st.markdown(kpi("⚡", "Servicios Total", fmt(total_servicios)), unsafe_allow_html=True)
+    with gc4:
+        st.markdown(kpi("💸", "Gastos Fijos Total", fmt(gastos_fijos)), unsafe_allow_html=True)
+
+    # ── Fetch combined sales ──
+    with st.spinner(f"Cargando datos de {kpi_month} {kpi_year} de todos los locales..."):
+        try:
+            combined_data = []
+            per_local_stats = {}
+            per_local_tables = {}
+            first_local = True
+            for key in allowed_locals:
+                try:
+                    if not first_local:
+                        time.sleep(1)
+                    raw = cached_get_sales(clients[key], first_of_month.isoformat(), end_of_month.isoformat(), local_key=key)
+                    local_data = raw.get("data", [])
+                    combined_data.extend(local_data)
+                    local_stats = process_sales(local_data)
+                    if local_stats:
+                        per_local_stats[key] = local_stats
+                    first_local = False
+                except Exception:
+                    first_local = False
+
+                # Tables for capacity
+                try:
+                    tbl = cached_get_tables(clients[key], local_key=key).get("data", [])
+                    per_local_tables[key] = tbl
+                except Exception:
+                    per_local_tables[key] = []
+
+            s = process_sales(combined_data)
+        except Exception as e:
+            st.error(f"Error al cargar ventas: {e}")
+            return
+
+        if not s:
+            st.info(f"Sin ventas registradas en {kpi_month} {kpi_year} para ningun local.")
+            return
+
+        dias_periodo = (end_of_month - first_of_month).days + 1
+        total_ventas = s["total_sales"]
+        total_cost = s["total_cost"]
+        num_orders = s["num_orders"]
+        total_clients = s["total_clients"]
+
+        # Aggregate tables
+        all_tables = []
+        for tbl_list in per_local_tables.values():
+            all_tables.extend(tbl_list)
+        total_tables = len(all_tables)
+        total_seats = sum(t.get("capacity", 0) for t in all_tables)
+
+        # Use average horas_op across locals
+        horas_ops = [get_local_config(k, locals_config).get("horas_op", 12) for k in allowed_locals]
+        avg_horas_op = sum(horas_ops) / len(horas_ops) if horas_ops else 12
+
+    # ══════════════════════════════════════════
+    # KPIs FINANCIEROS
+    # ══════════════════════════════════════════
+    food_cost_pct = (total_cost / total_ventas * 100) if total_ventas else 0
+    labor_cost_pct = (total_sueldos / total_ventas * 100) if total_ventas else 0
+    rent_cost_pct = (total_arriendo_clp / total_ventas * 100) if total_ventas else 0
+    prime_cost_pct = food_cost_pct + labor_cost_pct
+    margen_bruto = total_ventas - total_cost
+    resultado_op = total_ventas - total_cost - total_sueldos - total_arriendo_clp - total_servicios - total_otros
+    punto_equilibrio = gastos_fijos / (1 - food_cost_pct / 100) if food_cost_pct < 100 else 0
+
+    # Operativos
+    ticket_promedio = total_ventas / num_orders if num_orders else 0
+    gasto_cliente = total_ventas / total_clients if total_clients else 0
+    revpash = total_ventas / (total_seats * avg_horas_op * dias_periodo) if (total_seats and avg_horas_op and dias_periodo) else 0
+    rotacion_mesas = num_orders / total_tables if total_tables else 0
+    venta_m2 = total_ventas / total_m2 if total_m2 else 0
+
+    sec("💰", "KPIs Financieros — Red Completa")
+
+    # Gauges
+    g1, g2, g3, g4 = st.columns(4)
+    with g1:
+        fig = _gauge_chart("Food Cost %", round(food_cost_pct, 1), "%",
+                           green_range=(28, 35), red_threshold=40)
+        st.plotly_chart(fig, use_container_width=True)
+        fc_color = _kpi_color(food_cost_pct, (28, 35), (22, 40))
+        st.markdown(kpi("🥩", "Food Cost", fmt_pct(food_cost_pct),
+                        f"Meta: 28-35% · {fmt(total_cost)}", fc_color), unsafe_allow_html=True)
+
+    with g2:
+        fig = _gauge_chart("Labor Cost %", round(labor_cost_pct, 1), "%",
+                           green_range=(20, 30), red_threshold=35)
+        st.plotly_chart(fig, use_container_width=True)
+        lc_color = _kpi_color(labor_cost_pct, (20, 30), (15, 35))
+        if total_sueldos == 0:
+            st.caption("Configura sueldos por local para calcular Labor Cost")
+        else:
+            st.markdown(kpi("👨‍🍳", "Labor Cost", fmt_pct(labor_cost_pct),
+                            f"Meta: ≤30% · {fmt(total_sueldos)}", lc_color), unsafe_allow_html=True)
+
+    with g3:
+        fig = _gauge_chart("Rent Cost %", round(rent_cost_pct, 1), "%",
+                           green_range=(5, 8), red_threshold=10)
+        st.plotly_chart(fig, use_container_width=True)
+        rc_color = _kpi_color(rent_cost_pct, (5, 8), (3, 10))
+        if total_arriendo_uf == 0:
+            st.caption("Configura arriendo por local para calcular Rent Cost")
+        else:
+            st.markdown(kpi("🏠", "Rent Cost", fmt_pct(rent_cost_pct),
+                            f"Meta: ≤8-10% · {fmt(total_arriendo_clp)}", rc_color), unsafe_allow_html=True)
+
+    with g4:
+        fig = _gauge_chart("Prime Cost %", round(prime_cost_pct, 1), "%",
+                           green_range=(50, 60), red_threshold=65, max_val=100)
+        st.plotly_chart(fig, use_container_width=True)
+        pc_color = _kpi_color(prime_cost_pct, (50, 60), (45, 65))
+        st.markdown(kpi("📊", "Prime Cost", fmt_pct(prime_cost_pct),
+                        "Meta: ≤60-65% (Food+Labor)", pc_color), unsafe_allow_html=True)
+
+    st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+
+    # Cards financieros
+    f1, f2, f3 = st.columns(3)
+    with f1:
+        st.markdown(kpi("📈", "Margen Bruto", fmt(margen_bruto),
+                        f"Ventas: {fmt(total_ventas)} — Costo: {fmt(total_cost)}"), unsafe_allow_html=True)
+    with f2:
+        res_color = "normal" if resultado_op > 0 else "red"
+        st.markdown(kpi("🏦", "Resultado Operacional", fmt(resultado_op),
+                        f"Gastos fijos: {fmt(gastos_fijos)}", res_color), unsafe_allow_html=True)
+    with f3:
+        st.markdown(kpi("⚖️", "Punto de Equilibrio", fmt(punto_equilibrio),
+                        "Venta minima para cubrir costos fijos"), unsafe_allow_html=True)
+
+    # Progress bar
+    if punto_equilibrio > 0:
+        progreso = min(total_ventas / punto_equilibrio, 1.0)
+        progreso_pct = round(progreso * 100, 1)
+        bar_color = SUCCESS if progreso >= 1.0 else (WARNING if progreso >= 0.7 else DANGER)
+        st.markdown(f"""<div style="margin:12px 0 4px 0;font-size:0.78rem;font-weight:700;color:{TEXT_PRIMARY};">
+            Progreso al punto de equilibrio: {progreso_pct}%
+        </div>
+        <div style="background:{BORDER};border-radius:6px;height:10px;overflow:hidden;">
+            <div style="background:{bar_color};width:{min(progreso_pct, 100)}%;height:100%;border-radius:6px;transition:width 0.5s;"></div>
+        </div>""", unsafe_allow_html=True)
+
+    # Cost breakdown charts
+    if gastos_fijos > 0 or total_cost > 0:
+        st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+        dc1, dc2 = st.columns(2)
+        with dc1:
+            cost_labels = []
+            cost_values = []
+            if total_cost > 0:
+                cost_labels.append("Costo Ingredientes")
+                cost_values.append(total_cost)
+            if total_sueldos > 0:
+                cost_labels.append("Sueldos")
+                cost_values.append(total_sueldos)
+            if total_arriendo_clp > 0:
+                cost_labels.append("Arriendo")
+                cost_values.append(total_arriendo_clp)
+            if total_servicios > 0:
+                cost_labels.append("Servicios")
+                cost_values.append(total_servicios)
+            if total_otros > 0:
+                cost_labels.append("Otros")
+                cost_values.append(total_otros)
+
+            if cost_labels:
+                fig = go.Figure(go.Pie(
+                    labels=cost_labels, values=cost_values,
+                    hole=0.55, textinfo="label+percent",
+                    textfont=dict(color="#1a1a1a", size=11), textposition="outside",
+                    marker=dict(colors=[TOTEAT_RED, "#ff6b61", "#ffa099", WARNING, TEXT_SECONDARY]),
+                    hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
+                ))
+                fig.update_layout(title="Desglose de Costos (Red)", height=300, showlegend=False, **PLOTLY_LAYOUT)
+                st.plotly_chart(fig, use_container_width=True)
+
+        with dc2:
+            cat_names = ["Ventas", "Food Cost", "Sueldos", "Arriendo", "Servicios", "Otros", "Resultado"]
+            cat_values = [total_ventas, -total_cost, -total_sueldos, -total_arriendo_clp, -total_servicios, -total_otros, resultado_op]
+            measures = ["absolute", "relative", "relative", "relative", "relative", "relative", "total"]
+
+            fig = go.Figure(go.Waterfall(
+                x=cat_names, y=cat_values, measure=measures,
+                connector=dict(line=dict(color=BORDER)),
+                increasing=dict(marker=dict(color=SUCCESS)),
+                decreasing=dict(marker=dict(color=TOTEAT_RED)),
+                totals=dict(marker=dict(color="#1a1a1a" if resultado_op >= 0 else DANGER)),
+                textposition="outside",
+                text=[fmt(abs(v)) for v in cat_values],
+                textfont=dict(size=10, color=TEXT_SECONDARY),
+            ))
+            fig.update_layout(title="Cascada de Resultado (Red)", height=300, **PLOTLY_LAYOUT)
+            st.plotly_chart(fig, use_container_width=True)
+
+    # ══════════════════════════════════════════
+    # KPIs OPERATIVOS
+    # ══════════════════════════════════════════
+    sec("⚙️", "KPIs Operativos — Red Completa")
+
+    st.markdown(f"""<div style="font-size:0.78rem;color:{TEXT_SECONDARY};margin-bottom:10px;">
+        Periodo: {first_of_month.strftime('%d/%m/%Y')} al {end_of_month.strftime('%d/%m/%Y')} ({dias_periodo} dias)
+        — {total_seats} asientos en {total_tables} mesas — {total_m2} m2 totales
+    </div>""", unsafe_allow_html=True)
+
+    o1, o2, o3, o4 = st.columns(4)
+    with o1:
+        st.markdown(kpi("🎫", "Ticket Promedio", fmt(ticket_promedio),
+                        f"{num_orders} ordenes"), unsafe_allow_html=True)
+    with o2:
+        st.markdown(kpi("👤", "Gasto por Cliente", fmt(gasto_cliente),
+                        f"{total_clients} clientes"), unsafe_allow_html=True)
+    with o3:
+        revpash_color = "normal" if revpash > 0 else "warn"
+        st.markdown(kpi("💺", "RevPASH", fmt(revpash),
+                        "Ingreso por asiento por hora", revpash_color), unsafe_allow_html=True)
+    with o4:
+        rotacion_str = f"{rotacion_mesas:.1f}"
+        st.markdown(kpi("🔄", "Rotacion de Mesas", rotacion_str,
+                        f"{num_orders} ordenes / {total_tables} mesas"), unsafe_allow_html=True)
+
+    o5, o6, _, _ = st.columns(4)
+    with o5:
+        st.markdown(kpi("📐", "Venta por m2", fmt(venta_m2),
+                        f"{total_m2} m2 totales"), unsafe_allow_html=True)
+    with o6:
+        venta_diaria = total_ventas / dias_periodo if dias_periodo else 0
+        st.markdown(kpi("📅", "Venta Diaria Prom.", fmt(venta_diaria),
+                        f"{dias_periodo} dias"), unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════
+    # COMPARATIVA POR LOCAL — KPIs
+    # ══════════════════════════════════════════
+    sec("🏪", "Comparativa de KPIs por Local")
+
+    if per_local_stats:
+        kpi_comp_rows = []
+        for key in allowed_locals:
+            if key in per_local_stats:
+                ls = per_local_stats[key]
+                local_name = locals_config[key].get("name", key)
+                cfg = get_local_config(key, locals_config)
+                local_sueldos = cfg.get("sueldos", 0)
+                local_arriendo_uf = cfg.get("arriendo_uf", 0.0)
+                local_arriendo_clp = local_arriendo_uf * uf_val if uf_val else 0
+                local_servicios = cfg.get("servicios", 0)
+                local_otros = cfg.get("otros", 0)
+                local_ventas = ls["total_sales"]
+                local_cost = ls["total_cost"]
+
+                local_food_cost = (local_cost / local_ventas * 100) if local_ventas else 0
+                local_labor_cost = (local_sueldos / local_ventas * 100) if local_ventas else 0
+                local_rent_cost = (local_arriendo_clp / local_ventas * 100) if local_ventas else 0
+                local_prime_cost = local_food_cost + local_labor_cost
+
+                local_tables = per_local_tables.get(key, [])
+                local_seats = sum(t.get("capacity", 0) for t in local_tables)
+                local_horas = cfg.get("horas_op", 12)
+                local_m2 = cfg.get("m2", 100)
+                local_revpash = local_ventas / (local_seats * local_horas * dias_periodo) if (local_seats and local_horas and dias_periodo) else 0
+                local_ticket = ls["avg_ticket"]
+
+                kpi_comp_rows.append({
+                    "Local": local_name,
+                    "Venta Neta": fmt_full(local_ventas),
+                    "Food Cost %": f"{local_food_cost:.1f}%",
+                    "Labor Cost %": f"{local_labor_cost:.1f}%",
+                    "Rent Cost %": f"{local_rent_cost:.1f}%",
+                    "Prime Cost %": f"{local_prime_cost:.1f}%",
+                    "Ticket Prom.": fmt_full(local_ticket),
+                    "RevPASH": fmt(local_revpash),
+                    "Venta/m2": fmt(local_ventas / local_m2 if local_m2 else 0),
+                })
+
+        if kpi_comp_rows:
+            st.dataframe(kpi_comp_rows, use_container_width=True, hide_index=True)
+
+    # Summary table
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+    with st.expander("Ver tabla resumen de KPIs consolidados"):
+        kpi_rows = [
+            {"KPI": "Food Cost %", "Valor": fmt_pct(food_cost_pct), "Meta": "28-35%",
+             "Estado": "OK" if 28 <= food_cost_pct <= 35 else ("Alerta" if food_cost_pct <= 40 else "Critico")},
+            {"KPI": "Labor Cost %", "Valor": fmt_pct(labor_cost_pct), "Meta": "<=30%",
+             "Estado": "OK" if labor_cost_pct <= 30 else ("Alerta" if labor_cost_pct <= 35 else "Critico")},
+            {"KPI": "Rent Cost %", "Valor": fmt_pct(rent_cost_pct), "Meta": "<=8-10%",
+             "Estado": "OK" if rent_cost_pct <= 8 else ("Alerta" if rent_cost_pct <= 10 else "Critico")},
+            {"KPI": "Prime Cost %", "Valor": fmt_pct(prime_cost_pct), "Meta": "<=60-65%",
+             "Estado": "OK" if prime_cost_pct <= 60 else ("Alerta" if prime_cost_pct <= 65 else "Critico")},
+            {"KPI": "Margen Bruto", "Valor": fmt(margen_bruto), "Meta": "—", "Estado": "—"},
+            {"KPI": "Resultado Operacional", "Valor": fmt(resultado_op), "Meta": "> $0",
+             "Estado": "OK" if resultado_op > 0 else "Critico"},
+            {"KPI": "Punto de Equilibrio", "Valor": fmt(punto_equilibrio), "Meta": "—",
+             "Estado": "Cubierto" if total_ventas >= punto_equilibrio else "No alcanzado"},
+            {"KPI": "Ticket Promedio", "Valor": fmt(ticket_promedio), "Meta": "—", "Estado": "—"},
+            {"KPI": "Gasto por Cliente", "Valor": fmt(gasto_cliente), "Meta": "—", "Estado": "—"},
+            {"KPI": "RevPASH", "Valor": fmt(revpash), "Meta": "—", "Estado": "—"},
+            {"KPI": "Rotacion de Mesas", "Valor": f"{rotacion_mesas:.1f}", "Meta": "—", "Estado": "—"},
+            {"KPI": "Venta por m2", "Valor": fmt(venta_m2), "Meta": "—", "Estado": "—"},
+        ]
+        st.dataframe(kpi_rows, use_container_width=True, hide_index=True)
+
+def render_consolidated_chat(clients, locals_config, allowed_locals):
+    if not st.session_state.anthropic_client:
+        st.markdown(f"""<div style="text-align:center;padding:60px 20px;">
+            <div style="font-size:3rem;">🤖</div>
+            <div style="font-size:1.2rem;font-weight:700;color:{TEXT_PRIMARY};margin-top:12px;">Chat IA - Red Completa</div>
+            <div style="color:{TEXT_SECONDARY};margin-top:8px;">Agrega tu Anthropic API Key en la barra lateral.</div>
+        </div>""", unsafe_allow_html=True)
+        return
+
+    import anthropic
+
+    local_names = [locals_config[k].get("name", k) for k in allowed_locals]
+    st.caption(f"Consultando {len(allowed_locals)} locales: {', '.join(local_names)}")
+
+    system_prompt = f"""Eres un asistente inteligente para cadenas de restaurantes que usan Toteat.
+Hoy es {date.today().isoformat()}.
+Tienes acceso a {len(allowed_locals)} locales: {', '.join(local_names)}.
+Los datos de cada herramienta vienen organizados por local.
+Compara entre locales cuando sea relevante.
+Si el usuario pregunta por un local especifico, enfocate en ese.
+Responde siempre en espanol.
+"""
+
+    if "messages_red" not in st.session_state:
+        st.session_state.messages_red = []
+
+    for msg in st.session_state.messages_red:
+        if msg["role"] == "user" and isinstance(msg["content"], str):
+            with st.chat_message("user"):
+                st.markdown(msg["content"])
+        elif msg["role"] == "assistant":
+            text = msg["content"] if isinstance(msg["content"], str) else None
+            if isinstance(msg["content"], list):
+                for block in msg["content"]:
+                    if hasattr(block, "text"):
+                        text = block.text
+                        break
+            if text:
+                with st.chat_message("assistant"):
+                    st.markdown(text)
+
+    if prompt := st.chat_input("Pregunta sobre tus restaurantes...", key="chat_red"):
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        api_messages = list(st.session_state.messages_red)
+        api_messages.append({"role": "user", "content": prompt})
+        st.session_state.messages_red.append({"role": "user", "content": prompt})
+        with st.chat_message("assistant"):
+            with st.spinner("Consultando todos los locales..."):
+                try:
+                    response = st.session_state.anthropic_client.messages.create(
+                        model="claude-sonnet-4-20250514", max_tokens=4096,
+                        system=system_prompt, tools=TOOLS, messages=api_messages)
+                    while response.stop_reason == "tool_use":
+                        tbs = [b for b in response.content if b.type == "tool_use"]
+                        api_messages.append({"role": "assistant", "content": response.content})
+                        trs = [{"type": "tool_result", "tool_use_id": tb.id,
+                                "content": execute_tool_multi(tb.name, tb.input, clients, locals_config)} for tb in tbs]
+                        api_messages.append({"role": "user", "content": trs})
+                        response = st.session_state.anthropic_client.messages.create(
+                            model="claude-sonnet-4-20250514", max_tokens=4096,
+                            system=system_prompt, tools=TOOLS, messages=api_messages)
+                    answer = next((b.text for b in response.content if hasattr(b, "text")), "Sin respuesta.")
+                    st.markdown(answer)
+                    st.session_state.messages_red.append({"role": "assistant", "content": answer})
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+
+# ──────────────────────────────────────────────
 # MAIN
 # ──────────────────────────────────────────────
 
 def main():
+    from multi_local import is_multi_local_mode, authenticate_by_token, load_locals_config, get_clients_for_locals, get_local_config
+
     init_session_state()
-    setup_sidebar()
-    tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "📈 KPIs Gastronomicos", "💬 Chat IA"])
-    with tab1:
-        render_dashboard()
-    with tab2:
-        render_kpis()
-    with tab3:
-        render_chat()
+
+    if is_multi_local_mode():
+        token, allowed_locals = authenticate_by_token()
+        if not token or not allowed_locals:
+            st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+            if token:
+                st.markdown(f'''<div style="text-align:center;padding:80px 20px;">
+                    <div style="font-size:3rem;">🔒</div>
+                    <div style="font-size:1.2rem;font-weight:700;color:#1a1a1a;margin-top:12px;">Token de acceso invalido</div>
+                    <div style="color:#6b7280;margin-top:8px;">El token proporcionado no tiene permisos o ha expirado.</div>
+                </div>''', unsafe_allow_html=True)
+            else:
+                st.markdown(f'''<div style="text-align:center;padding:80px 20px;">
+                    <div style="font-size:3rem;">🔑</div>
+                    <div style="font-size:1.2rem;font-weight:700;color:#1a1a1a;margin-top:12px;">Acceso restringido</div>
+                    <div style="color:#6b7280;margin-top:8px;">Necesitas un enlace de acceso para usar esta aplicacion.<br>Contacta al administrador para obtener tu enlace.</div>
+                </div>''', unsafe_allow_html=True)
+            return
+
+        locals_config = load_locals_config()
+        clients = get_clients_for_locals(allowed_locals, locals_config)
+
+        # Selector de local
+        local_options = ["__red_completa__"] + allowed_locals
+        local_labels = [f"Red Completa ({len(allowed_locals)} locales)"] + [locals_config[k].get("name", k) for k in allowed_locals]
+
+        # Header with selector
+        hdr1, hdr2 = st.columns([3, 2])
+        with hdr1:
+            st.markdown(f'''<div class="toteat-brand" style="padding:8px 0;">
+                <div class="toteat-logo-icon">t</div>
+                <div>
+                    <div class="toteat-title">tot<span>eat</span> Intelligence</div>
+                    <div class="toteat-subtitle">Panel multi-sucursal</div>
+                </div>
+            </div>''', unsafe_allow_html=True)
+        with hdr2:
+            selected_idx = st.selectbox("Local", range(len(local_options)),
+                                         format_func=lambda i: local_labels[i],
+                                         key="local_selector")
+        selected = local_options[selected_idx]
+
+        if selected == "__red_completa__":
+            tab1, tab2, tab3 = st.tabs(["📊 Dashboard Red", "📈 KPIs Gastronomicos", "💬 Chat IA"])
+            with tab1:
+                render_consolidated_dashboard(clients, locals_config, allowed_locals)
+            with tab2:
+                render_consolidated_kpis(clients, locals_config, allowed_locals)
+            with tab3:
+                render_consolidated_chat(clients, locals_config, allowed_locals)
+        else:
+            client = clients[selected]
+            config = get_local_config(selected, locals_config)
+            local_name = locals_config[selected].get("name", selected)
+            tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "📈 KPIs Gastronomicos", "💬 Chat IA"])
+            with tab1:
+                render_dashboard(client=client, local_key=selected, local_name=local_name)
+            with tab2:
+                render_kpis(client=client, local_key=selected, local_name=local_name)
+            with tab3:
+                render_chat(client=client, local_key=selected, local_name=local_name)
+    else:
+        # Legacy single-restaurant mode
+        setup_sidebar()
+        tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "📈 KPIs Gastronomicos", "💬 Chat IA"])
+        with tab1:
+            render_dashboard()
+        with tab2:
+            render_kpis()
+        with tab3:
+            render_chat()
 
 if __name__ == "__main__":
     main()

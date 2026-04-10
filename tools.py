@@ -200,3 +200,18 @@ def execute_tool(tool_name: str, tool_input: dict, client: ToteatAPI) -> str:
         return json.dumps(result, ensure_ascii=False, default=str)
     except Exception as e:
         return json.dumps({"error": str(e)}, ensure_ascii=False)
+
+
+def execute_tool_multi(tool_name: str, tool_input: dict, clients: dict, locals_config: dict) -> str:
+    """Ejecuta una herramienta en todos los locales y retorna resultados agrupados."""
+    import time
+    results = {}
+    for key, client in clients.items():
+        name = locals_config.get(key, {}).get("name", key)
+        try:
+            result = execute_tool(tool_name, tool_input, client)
+            results[name] = json.loads(result)
+        except Exception as e:
+            results[name] = {"error": str(e)}
+        time.sleep(1)  # Evitar rate limiting
+    return json.dumps(results, ensure_ascii=False, default=str)
