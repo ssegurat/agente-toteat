@@ -1055,44 +1055,55 @@ def render_dashboard():
             st.button("Consultar", key="go_coll")
 
         with st.spinner("Consultando recaudacion..."):
+            # Obtener medios de pago desde las ventas del dia
+            raw_coll_sales = cached_get_sales(client, coll_date.isoformat(), coll_date.isoformat())
+            coll_sales_data = raw_coll_sales.get("data", [])
+
+            # Obtener info de cajas desde collection API
             raw_coll = cached_get_collection(client, coll_date.isoformat())
             coll_data = raw_coll.get("data", raw_coll) if isinstance(raw_coll, dict) else raw_coll
 
-            if not coll_data:
-                st.info("Sin datos de recaudacion para este dia.")
+            # Extraer medios de pago desde ventas
+            payment_methods = {}
+            total_recaudado = 0
+            for order in coll_sales_data:
+                for pf in order.get("paymentForms", []):
+                    method = pf.get("name", "Otro")
+                    amount = float(pf.get("amount", 0))
+                    payment_methods[method] = payment_methods.get(method, 0) + amount
+                    total_recaudado += amount
+
+            # Extraer info de cajas desde collection
+            cajas_info = []
+            if isinstance(coll_data, dict):
+                shifts = coll_data.get("shifts", {})
+                for shift_id, shift in shifts.items():
+                    shift_name = shift.get("name", f"Turno {shift_id}")
+                    registers = shift.get("registers", {})
+                    for reg_id, reg_list in registers.items():
+                        if isinstance(reg_list, list):
+                            for reg in reg_list:
+                                cajas_info.append({
+                                    "Turno": shift_name,
+                                    "Caja": reg.get("registerName", f"Caja {reg_id}"),
+                                    "Apertura": reg.get("openedDate", "")[:16].replace("T", " "),
+                                    "Cierre": reg.get("closedDate", "")[:16].replace("T", " ") if reg.get("closedDate") else "Abierta",
+                                })
+
+            if not coll_sales_data:
+                st.info("Sin ventas registradas para este dia.")
             else:
-                # Extraer medios de pago y totales
-                payment_methods = {}
-                total_recaudado = 0
-
-                if isinstance(coll_data, list):
-                    for item in coll_data:
-                        method = item.get("paymentMethod", item.get("name", item.get("method", "Otro")))
-                        amount = float(item.get("total", item.get("amount", 0)))
-                        payment_methods[method] = payment_methods.get(method, 0) + amount
-                        total_recaudado += amount
-                elif isinstance(coll_data, dict):
-                    total_recaudado = float(coll_data.get("total", coll_data.get("totalCollection", 0)))
-                    details = coll_data.get("details", coll_data.get("paymentMethods", coll_data.get("payments", [])))
-                    if isinstance(details, list):
-                        for item in details:
-                            method = item.get("paymentMethod", item.get("name", item.get("method", "Otro")))
-                            amount = float(item.get("total", item.get("amount", 0)))
-                            payment_methods[method] = payment_methods.get(method, 0) + amount
-                    elif isinstance(details, dict):
-                        for method, amount in details.items():
-                            payment_methods[method] = float(amount) if not isinstance(amount, dict) else float(amount.get("total", 0))
-                    if not payment_methods and total_recaudado > 0:
-                        payment_methods["Total"] = total_recaudado
-
                 # KPIs
                 num_medios = len(payment_methods)
-                c1, c2, c3 = st.columns(3)
+                num_ordenes = len(coll_sales_data)
+                c1, c2, c3, c4 = st.columns(4)
                 with c1:
                     st.markdown(kpi("💰", "Total Recaudado", fmt(total_recaudado)), unsafe_allow_html=True)
                 with c2:
-                    st.markdown(kpi("💳", "Medios de Pago", str(num_medios)), unsafe_allow_html=True)
+                    st.markdown(kpi("🧾", "Ordenes del Dia", str(num_ordenes)), unsafe_allow_html=True)
                 with c3:
+                    st.markdown(kpi("💳", "Medios de Pago", str(num_medios)), unsafe_allow_html=True)
+                with c4:
                     top_method = max(payment_methods, key=payment_methods.get) if payment_methods else "N/A"
                     top_amount = payment_methods.get(top_method, 0) if payment_methods else 0
                     st.markdown(kpi("🥇", "Medio Principal", top_method, f"{fmt(top_amount)}"), unsafe_allow_html=True)
@@ -1119,6 +1130,10 @@ def render_dashboard():
                         df_coll_display["% del Total"] = (df_coll_display["Monto"] / df_coll_display["Monto"].sum() * 100).round(1).apply(lambda x: f"{x}%")
                         df_coll_display["Monto"] = df_coll_display["Monto"].apply(fmt_full)
                         st.dataframe(df_coll_display, use_container_width=True, hide_index=True)
+
+            if cajas_info:
+                with st.expander("Ver detalle de cajas"):
+                    st.dataframe(cajas_info, use_container_width=True, hide_index=True)
 
     except Exception as e:
         st.error(f"Error al cargar recaudacion: {e}")
