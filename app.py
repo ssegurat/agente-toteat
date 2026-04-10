@@ -1574,6 +1574,10 @@ def render_kpis():
     # ══════════════════════════════════════════
     sec("💰", "KPIs Financieros")
 
+    # Helper para explicaciones educativas
+    def kpi_tip(text):
+        st.markdown(f'<div style="font-size:0.7rem;color:{TEXT_SECONDARY};line-height:1.4;margin-top:4px;padding:6px 8px;background:{BORDER_LIGHT};border-radius:6px;">{text}</div>', unsafe_allow_html=True)
+
     # Gauges
     g1, g2, g3, g4 = st.columns(4)
     with g1:
@@ -1583,6 +1587,7 @@ def render_kpis():
         fc_color = _kpi_color(food_cost_pct, (28, 35), (22, 40))
         st.markdown(kpi("🥩", "Food Cost", fmt_pct(food_cost_pct),
                         f"Meta: 28-35% · {fmt(total_cost)}", fc_color), unsafe_allow_html=True)
+        kpi_tip("<b>Costo de alimentos sobre ventas.</b> Mide cuanto de cada $100 que vendes se va en ingredientes. Si sube, revisa proveedores, merma o porciones.")
 
     with g2:
         fig = _gauge_chart("Labor Cost %", round(labor_cost_pct, 1), "%",
@@ -1594,6 +1599,7 @@ def render_kpis():
         else:
             st.markdown(kpi("👨‍🍳", "Labor Cost", fmt_pct(labor_cost_pct),
                             f"Meta: ≤30% · {fmt(sueldos)}", lc_color), unsafe_allow_html=True)
+        kpi_tip("<b>Costo de personal sobre ventas.</b> Incluye sueldos, imposiciones y beneficios. Si es muy alto, necesitas vender mas o ajustar dotacion en turnos bajos.")
 
     with g3:
         fig = _gauge_chart("Rent Cost %", round(rent_cost_pct, 1), "%",
@@ -1605,6 +1611,7 @@ def render_kpis():
         else:
             st.markdown(kpi("🏠", "Rent Cost", fmt_pct(rent_cost_pct),
                             f"Meta: ≤8-10% · {fmt(arriendo_clp)}", rc_color), unsafe_allow_html=True)
+        kpi_tip("<b>Costo de arriendo sobre ventas.</b> Si supera el 10%, el local no genera suficiente venta para justificar su ubicacion. Renegociar arriendo o aumentar ventas.")
 
     with g4:
         fig = _gauge_chart("Prime Cost %", round(prime_cost_pct, 1), "%",
@@ -1613,6 +1620,7 @@ def render_kpis():
         pc_color = _kpi_color(prime_cost_pct, (50, 60), (45, 65))
         st.markdown(kpi("📊", "Prime Cost", fmt_pct(prime_cost_pct),
                         "Meta: ≤60-65% (Food+Labor)", pc_color), unsafe_allow_html=True)
+        kpi_tip("<b>El KPI mas importante.</b> Suma Food Cost + Labor Cost. Si supera 65%, el negocio no es sostenible. Es la primera alarma que debes mirar cada mes.")
 
     st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
 
@@ -1621,13 +1629,16 @@ def render_kpis():
     with f1:
         st.markdown(kpi("📈", "Margen Bruto", fmt(margen_bruto),
                         f"Ventas: {fmt(total_ventas)} — Costo: {fmt(total_cost)}"), unsafe_allow_html=True)
+        kpi_tip("<b>Lo que queda despues de pagar ingredientes.</b> De aqui salen sueldos, arriendo y gastos. Si es bajo, revisa precios de carta o costos de recetas.")
     with f2:
         res_color = "normal" if resultado_op > 0 else "red"
         st.markdown(kpi("🏦", "Resultado Operacional", fmt(resultado_op),
                         f"Gastos fijos: {fmt(gastos_fijos)}", res_color), unsafe_allow_html=True)
+        kpi_tip("<b>Ganancia o perdida real del mes.</b> Ventas menos todos los costos (ingredientes + sueldos + arriendo + servicios + otros). Si es negativo, estas perdiendo plata.")
     with f3:
         st.markdown(kpi("⚖️", "Punto de Equilibrio", fmt(punto_equilibrio),
                         "Venta minima para cubrir costos fijos"), unsafe_allow_html=True)
+        kpi_tip("<b>Cuanto necesitas vender para no perder.</b> Cada peso por debajo es perdida, cada peso por encima es ganancia. Dividelo por dias del mes para saber tu meta diaria.")
 
     # Barra de progreso hacia punto de equilibrio
     if punto_equilibrio > 0:
@@ -1708,26 +1719,32 @@ def render_kpis():
     with o1:
         st.markdown(kpi("🎫", "Ticket Promedio", fmt(ticket_promedio),
                         f"{num_orders} ordenes"), unsafe_allow_html=True)
+        kpi_tip("<b>Gasto promedio por cuenta.</b> Subir el ticket es la forma mas facil de aumentar ventas sin mas clientes. Estrategias: sugerencia de postres, maridaje, promociones por mesa.")
     with o2:
         st.markdown(kpi("👤", "Gasto por Cliente", fmt(gasto_cliente),
                         f"{total_clients} clientes"), unsafe_allow_html=True)
+        kpi_tip("<b>Cuanto gasta cada persona.</b> A diferencia del ticket (por mesa), este mide por persona. Util para comparar almuerzos (1-2 personas) vs cenas (grupos).")
     with o3:
         revpash_color = "normal" if revpash > 0 else "warn"
         st.markdown(kpi("💺", "RevPASH", fmt(revpash),
                         "Ingreso por asiento por hora", revpash_color), unsafe_allow_html=True)
+        kpi_tip("<b>Revenue Per Available Seat Hour.</b> Mide cuanto genera cada asiento por hora. Si es bajo en ciertos turnos, considera promociones en esos horarios o reducir mesas activas.")
     with o4:
         rotacion_str = f"{rotacion_mesas:.1f}"
         st.markdown(kpi("🔄", "Rotacion de Mesas", rotacion_str,
                         f"{num_orders} ordenes / {total_tables} mesas"), unsafe_allow_html=True)
+        kpi_tip("<b>Cuantas veces se usa cada mesa.</b> Una rotacion de 2 significa que en promedio cada mesa atendio 2 servicios. Mejorar: reducir tiempos de servicio, optimizar reservas.")
 
     o5, o6, _, _ = st.columns(4)
     with o5:
         st.markdown(kpi("📐", "Venta por m²", fmt(venta_m2),
                         f"{m2} m² de local"), unsafe_allow_html=True)
+        kpi_tip("<b>Productividad del espacio.</b> Cuanto genera cada metro cuadrado. Si es bajo, el local esta subutilizado. Opciones: delivery, eventos, reorganizar layout.")
     with o6:
         venta_diaria = total_ventas / dias_periodo if dias_periodo else 0
         st.markdown(kpi("📅", "Venta Diaria Prom.", fmt(venta_diaria),
                         f"{dias_periodo} dias operados"), unsafe_allow_html=True)
+        kpi_tip("<b>Meta diaria de referencia.</b> Divide tu punto de equilibrio por los dias del mes para saber cuanto necesitas vender cada dia como minimo.")
 
     # Tabla resumen de todos los KPIs
     st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
