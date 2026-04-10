@@ -617,61 +617,8 @@ def render_dashboard():
         <div class="toteat-date">{today.strftime('%A %d de %B, %Y')}</div>
     </div>""", unsafe_allow_html=True)
 
-    # ── Estado en vivo ──
-    shift_data, table_data = {}, []
-    try:
-        shift_data = cached_get_shift(client).get("data", {})
-    except Exception:
-        pass
-    try:
-        table_data = cached_get_tables(client).get("data", [])
-    except Exception:
-        pass
-
-    total_t = len(table_data)
-    avail_t = sum(1 for t in table_data if t.get("available"))
-    occup_t = total_t - avail_t
-    occup_pct = round(occup_t / total_t * 100) if total_t else 0
-
-    shift_status = shift_data.get("status", "closed")
-    shift_time = ""
-    sd = shift_data.get("date", "")
-    if sd and "T" in sd:
-        shift_time = sd.split("T")[1][:5]
-
-    badge = '<span class="badge-open">ABIERTO</span>' if shift_status == "open" else '<span class="badge-closed">CERRADO</span>'
-
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown(kpi("🏪", "Turno", badge, f"Desde {shift_time}" if shift_time else None), unsafe_allow_html=True)
-    with c2:
-        st.markdown(kpi("🪑", "Ocupacion", f"{occup_t}/{total_t}",
-                        f"{occup_pct}% ocupado", "warn" if occup_pct > 75 else "normal"), unsafe_allow_html=True)
-    with c3:
-        st.markdown(kpi("✅", "Disponibles", str(avail_t)), unsafe_allow_html=True)
-    with c4:
-        total_cap = sum(t.get("capacity", 0) for t in table_data)
-        st.markdown(kpi("👥", "Capacidad Total", str(total_cap), f"{total_t} mesas"), unsafe_allow_html=True)
-
-    # Sector summary (if multiple)
-    if table_data:
-        by_sector = {}
-        for t in table_data:
-            s = t.get("sectorName", "General")
-            by_sector.setdefault(s, {"total": 0, "available": 0, "capacity": 0})
-            by_sector[s]["total"] += 1
-            if t.get("available"):
-                by_sector[s]["available"] += 1
-            by_sector[s]["capacity"] += t.get("capacity", 0)
-        if len(by_sector) > 1:
-            with st.expander("Ver ocupacion por sector"):
-                rows = [{"Sector": sn, "Mesas": sv["total"], "Ocupadas": sv["total"]-sv["available"],
-                         "Libres": sv["available"], "Ocupacion": f"{round((sv['total']-sv['available'])/sv['total']*100)}%",
-                         "Capacidad": sv["capacity"]} for sn, sv in by_sector.items()]
-                st.dataframe(rows, use_container_width=True, hide_index=True)
-
     # ══════════════════════════════════════════
-    # VENTAS
+    # VENTAS (arriba de todo)
     # ══════════════════════════════════════════
     sec("💰", "Analisis de Ventas")
 
@@ -924,6 +871,62 @@ def render_dashboard():
 
         except Exception as e:
             st.error(f"Error: {e}")
+
+    # ══════════════════════════════════════════
+    # ESTADO EN VIVO (Turno + Mesas)
+    # ══════════════════════════════════════════
+    sec("🏪", "Estado en Vivo")
+
+    shift_data, table_data = {}, []
+    try:
+        shift_data = cached_get_shift(client).get("data", {})
+    except Exception:
+        pass
+    try:
+        table_data = cached_get_tables(client).get("data", [])
+    except Exception:
+        pass
+
+    total_t = len(table_data)
+    avail_t = sum(1 for t in table_data if t.get("available"))
+    occup_t = total_t - avail_t
+    occup_pct = round(occup_t / total_t * 100) if total_t else 0
+
+    shift_status = shift_data.get("status", "closed")
+    shift_time = ""
+    sd = shift_data.get("date", "")
+    if sd and "T" in sd:
+        shift_time = sd.split("T")[1][:5]
+
+    badge = '<span class="badge-open">ABIERTO</span>' if shift_status == "open" else '<span class="badge-closed">CERRADO</span>'
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.markdown(kpi("🏪", "Turno", badge, f"Desde {shift_time}" if shift_time else None), unsafe_allow_html=True)
+    with c2:
+        st.markdown(kpi("🪑", "Ocupacion", f"{occup_t}/{total_t}",
+                        f"{occup_pct}% ocupado", "warn" if occup_pct > 75 else "normal"), unsafe_allow_html=True)
+    with c3:
+        st.markdown(kpi("✅", "Disponibles", str(avail_t)), unsafe_allow_html=True)
+    with c4:
+        total_cap = sum(t.get("capacity", 0) for t in table_data)
+        st.markdown(kpi("👥", "Capacidad Total", str(total_cap), f"{total_t} mesas"), unsafe_allow_html=True)
+
+    if table_data:
+        by_sector = {}
+        for t in table_data:
+            s = t.get("sectorName", "General")
+            by_sector.setdefault(s, {"total": 0, "available": 0, "capacity": 0})
+            by_sector[s]["total"] += 1
+            if t.get("available"):
+                by_sector[s]["available"] += 1
+            by_sector[s]["capacity"] += t.get("capacity", 0)
+        if len(by_sector) > 1:
+            with st.expander("Ver ocupacion por sector"):
+                rows = [{"Sector": sn, "Mesas": sv["total"], "Ocupadas": sv["total"]-sv["available"],
+                         "Libres": sv["available"], "Ocupacion": f"{round((sv['total']-sv['available'])/sv['total']*100)}%",
+                         "Capacidad": sv["capacity"]} for sn, sv in by_sector.items()]
+                st.dataframe(rows, use_container_width=True, hide_index=True)
 
     # ══════════════════════════════════════════
     # CANCELACIONES
