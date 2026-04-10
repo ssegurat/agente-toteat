@@ -1,5 +1,6 @@
 .env
 restaurant_config.json
+kpi_history.json
 __pycache__/
 *.pyc
 .claude/

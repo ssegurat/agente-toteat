@@ -333,6 +333,125 @@ def sec(icon, text):
 
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "restaurant_config.json")
+HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kpi_history.json")
+
+
+def _load_kpi_history() -> dict:
+    try:
+        with open(HISTORY_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _get_best_kpi(kpi_name: str, higher_is_better: bool = True) -> tuple:
+    """Retorna (valor, mes_key) del mejor registro historico de un KPI.
+    Returns (None, None) if no history."""
+    history = _load_kpi_history()
+    best_val, best_month = None, None
+    for month_key, kpis in history.items():
+        val = kpis.get(kpi_name)
+        if val is not None:
+            if best_val is None or (higher_is_better and val > best_val) or (not higher_is_better and val < best_val):
+                best_val, best_month = val, month_key
+    return best_val, best_month
+
+
+def _save_kpi_history(year: int, month: int, kpis: dict):
+    """Guarda KPIs de un mes al historial."""
+    month_key = f"{year}-{month:02d}"
+    try:
+        history = _load_kpi_history()
+        history[month_key] = kpis
+        with open(HISTORY_FILE, "w") as f:
+            json.dump(history, f, indent=2)
+    except Exception:
+        pass
+
+
+def _load_month_expenses(year: int, month: int) -> dict:
+    """Carga gastos de un mes especifico. Primero archivo local, luego Secrets."""
+    month_key = f"{year}-{month:02d}"
+    # Try local file
+    try:
+        with open(CONFIG_FILE, "r") as f:
+            data = json.load(f)
+            if "months" in data and month_key in data["months"]:
+                return data["months"][month_key]
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    # Fallback: Secrets
+    try:
+        rc = st.secrets["restaurant_config"]
+        # Check for month-specific key in secrets
+        # Secrets format: restaurant_config.months_2026_03.sueldos = X
+        month_secret_key = f"months_{month_key.replace('-', '_')}"
+        if month_secret_key in st.secrets:
+            sec = st.secrets[month_secret_key]
+            return {
+                "sueldos": int(sec["sueldos"]),
+                "arriendo_uf": float(sec["arriendo_uf"]),
+                "servicios": int(sec["servicios"]),
+                "otros": int(sec["otros"]),
+            }
+    except Exception:
+        pass
+    return {}
+
+
+def _save_month_expenses(year: int, month: int, expenses: dict):
+    """Guarda gastos de un mes especifico."""
+    month_key = f"{year}-{month:02d}"
+    try:
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            data = {}
+        if "months" not in data:
+            data["months"] = {}
+        data["months"][month_key] = expenses
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
+
+
+def _load_restaurant_defaults() -> dict:
+    """Carga parametros fijos del restaurante (horas_op, m2, num_empleados)."""
+    try:
+        with open(CONFIG_FILE, "r") as f:
+            data = json.load(f)
+            if "defaults" in data:
+                return data["defaults"]
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    # Fallback: Secrets
+    try:
+        rc = st.secrets["restaurant_config"]
+        return {
+            "horas_op": int(rc["horas_op"]),
+            "m2": int(rc["m2"]),
+            "num_empleados": int(rc["num_empleados"]),
+        }
+    except Exception:
+        pass
+    return {"horas_op": 12, "m2": 100, "num_empleados": 10}
+
+
+def _save_restaurant_defaults(defaults: dict):
+    """Guarda parametros fijos del restaurante."""
+    try:
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            data = {}
+        data["defaults"] = defaults
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
 
 
 def _load_restaurant_config() -> dict:
@@ -1473,48 +1592,57 @@ def render_kpis():
     uf_val = get_uf_value()
     uf_display = f"${uf_val:,.0f} CLP".replace(",", ".") if uf_val else "No disponible"
 
-    # Cargar config guardada
-    config = _load_restaurant_config()
+    # Cargar parametros fijos y gastos del mes seleccionado
+    defaults = _load_restaurant_defaults()
+    month_expenses = _load_month_expenses(kpi_year, selected_month)
 
     st.markdown(f"""<div style="font-size:0.8rem;color:{TEXT_SECONDARY};margin-bottom:8px;">
-        Valor UF hoy: <b>{uf_display}</b> — Estos datos se guardan automaticamente y persisten entre sesiones.
+        Valor UF hoy: <b>{uf_display}</b> — Los datos se guardan automaticamente y persisten entre sesiones.
     </div>""", unsafe_allow_html=True)
+
+    if not month_expenses:
+        st.warning(f"Ingresa los gastos de {kpi_month} {kpi_year} para calcular KPIs financieros precisos")
 
     gc1, gc2, gc3, gc4 = st.columns(4)
     with gc1:
-        sueldos = st.number_input("Sueldos del mes (CLP)", min_value=0, step=100000,
-                                  value=config.get("sueldos", 0), key="input_sueldos")
+        sueldos = st.number_input(f"Sueldos {kpi_month} (CLP)", min_value=0, step=100000,
+                                  value=month_expenses.get("sueldos", 0), key="input_sueldos")
     with gc2:
-        arriendo_uf = st.number_input("Arriendo (UF)", min_value=0.0, step=1.0, format="%.1f",
-                                      value=float(config.get("arriendo_uf", 0.0)), key="input_arriendo")
+        arriendo_uf = st.number_input(f"Arriendo {kpi_month} (UF)", min_value=0.0, step=1.0, format="%.1f",
+                                      value=float(month_expenses.get("arriendo_uf", 0.0)), key="input_arriendo")
         arriendo_clp = arriendo_uf * uf_val if uf_val else 0
         if arriendo_uf > 0 and uf_val:
             st.caption(f"= {fmt(arriendo_clp)} CLP")
     with gc3:
-        servicios = st.number_input("Servicios basicos (CLP)", min_value=0, step=50000,
-                                    value=config.get("servicios", 0), key="input_servicios")
+        servicios = st.number_input(f"Servicios {kpi_month} (CLP)", min_value=0, step=50000,
+                                    value=month_expenses.get("servicios", 0), key="input_servicios")
     with gc4:
-        otros = st.number_input("Otros gastos fijos (CLP)", min_value=0, step=50000,
-                                value=config.get("otros", 0), key="input_otros")
+        otros = st.number_input(f"Otros gastos {kpi_month} (CLP)", min_value=0, step=50000,
+                                value=month_expenses.get("otros", 0), key="input_otros")
 
     gc5, gc6, gc7, _ = st.columns([1, 1, 1, 1])
     with gc5:
         horas_op = st.number_input("Horas operacion/dia", min_value=1, max_value=24, step=1,
-                                   value=config.get("horas_op", 12), key="input_horas")
+                                   value=defaults.get("horas_op", 12), key="input_horas")
     with gc6:
         m2 = st.number_input("Metros cuadrados", min_value=1, step=10,
-                             value=config.get("m2", 100), key="input_m2")
+                             value=defaults.get("m2", 100), key="input_m2")
     with gc7:
         num_empleados = st.number_input("Num. empleados", min_value=1, step=1,
-                                        value=config.get("num_empleados", 10), key="input_empleados")
+                                        value=defaults.get("num_empleados", 10), key="input_empleados")
 
-    # Guardar automaticamente si cambiaron los valores
-    new_config = {
-        "sueldos": sueldos, "arriendo_uf": arriendo_uf, "servicios": servicios,
-        "otros": otros, "horas_op": horas_op, "m2": m2, "num_empleados": num_empleados,
+    # Guardar automaticamente gastos del mes si cambiaron
+    new_month_expenses = {
+        "sueldos": sueldos, "arriendo_uf": arriendo_uf,
+        "servicios": servicios, "otros": otros,
     }
-    if new_config != config:
-        _save_restaurant_config(new_config)
+    if new_month_expenses != month_expenses:
+        _save_month_expenses(kpi_year, selected_month, new_month_expenses)
+
+    # Guardar automaticamente defaults si cambiaron
+    new_defaults = {"horas_op": horas_op, "m2": m2, "num_empleados": num_empleados}
+    if new_defaults != defaults:
+        _save_restaurant_defaults(new_defaults)
 
     gastos_fijos = sueldos + arriendo_clp + servicios + otros
 
@@ -1578,6 +1706,43 @@ def render_kpis():
     def kpi_tip(text):
         st.markdown(f'<div style="font-size:0.7rem;color:{TEXT_SECONDARY};line-height:1.4;margin-top:4px;padding:6px 8px;background:{BORDER_LIGHT};border-radius:6px;">{text}</div>', unsafe_allow_html=True)
 
+    def kpi_record(kpi_name, current_val, higher_is_better=True, is_money=True):
+        """Muestra el mejor registro historico de un KPI."""
+        best_val, best_month = _get_best_kpi(kpi_name, higher_is_better)
+        if best_val is None or best_month is None:
+            return
+        # Format month name
+        try:
+            y, m = best_month.split("-")
+            meses_names = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+            month_label = f"{meses_names[int(m)-1]} {y}"
+        except Exception:
+            month_label = best_month
+
+        # Calculate difference
+        if current_val and best_val:
+            if is_money:
+                diff_text = fmt(abs(best_val - current_val))
+            else:
+                diff_text = f"{abs(best_val - current_val):.1f}"
+
+            if higher_is_better:
+                if current_val >= best_val:
+                    # Current IS the record!
+                    st.markdown(f'<div style="font-size:0.68rem;color:#f59e0b;font-weight:700;margin-top:3px;padding:4px 8px;background:#fffbeb;border-radius:6px;border:1px solid #f59e0b30;">⭐ Nuevo record!</div>', unsafe_allow_html=True)
+                    return
+                else:
+                    pct = ((best_val - current_val) / best_val * 100) if best_val else 0
+                    st.markdown(f'<div style="font-size:0.68rem;color:#6b7280;margin-top:3px;padding:4px 8px;background:#f9fafb;border-radius:6px;">⭐ Mejor: <b>{fmt(best_val) if is_money else f"{best_val:.1f}"}</b> ({month_label}) · -{pct:.1f}%</div>', unsafe_allow_html=True)
+            else:
+                # Lower is better (like food cost %)
+                if current_val <= best_val:
+                    st.markdown(f'<div style="font-size:0.68rem;color:#f59e0b;font-weight:700;margin-top:3px;padding:4px 8px;background:#fffbeb;border-radius:6px;border:1px solid #f59e0b30;">⭐ Nuevo record!</div>', unsafe_allow_html=True)
+                    return
+                else:
+                    pct = ((current_val - best_val) / best_val * 100) if best_val else 0
+                    st.markdown(f'<div style="font-size:0.68rem;color:#6b7280;margin-top:3px;padding:4px 8px;background:#f9fafb;border-radius:6px;">⭐ Mejor: <b>{fmt(best_val) if is_money else f"{best_val:.1f}%"}</b> ({month_label}) · +{pct:.1f}%</div>', unsafe_allow_html=True)
+
     # Gauges
     g1, g2, g3, g4 = st.columns(4)
     with g1:
@@ -1588,6 +1753,7 @@ def render_kpis():
         st.markdown(kpi("🥩", "Food Cost", fmt_pct(food_cost_pct),
                         f"Meta: 28-35% · {fmt(total_cost)}", fc_color), unsafe_allow_html=True)
         kpi_tip("<b>Costo de alimentos sobre ventas.</b> Mide cuanto de cada $100 que vendes se va en ingredientes. Si sube, revisa proveedores, merma o porciones.")
+        kpi_record("food_cost_pct", food_cost_pct, higher_is_better=False, is_money=False)
 
     with g2:
         fig = _gauge_chart("Labor Cost %", round(labor_cost_pct, 1), "%",
@@ -1600,6 +1766,7 @@ def render_kpis():
             st.markdown(kpi("👨‍🍳", "Labor Cost", fmt_pct(labor_cost_pct),
                             f"Meta: ≤30% · {fmt(sueldos)}", lc_color), unsafe_allow_html=True)
         kpi_tip("<b>Costo de personal sobre ventas.</b> Incluye sueldos, imposiciones y beneficios. Si es muy alto, necesitas vender mas o ajustar dotacion en turnos bajos.")
+        kpi_record("labor_cost_pct", labor_cost_pct, higher_is_better=False, is_money=False)
 
     with g3:
         fig = _gauge_chart("Rent Cost %", round(rent_cost_pct, 1), "%",
@@ -1612,6 +1779,7 @@ def render_kpis():
             st.markdown(kpi("🏠", "Rent Cost", fmt_pct(rent_cost_pct),
                             f"Meta: ≤8-10% · {fmt(arriendo_clp)}", rc_color), unsafe_allow_html=True)
         kpi_tip("<b>Costo de arriendo sobre ventas.</b> Si supera el 10%, el local no genera suficiente venta para justificar su ubicacion. Renegociar arriendo o aumentar ventas.")
+        kpi_record("rent_cost_pct", rent_cost_pct, higher_is_better=False, is_money=False)
 
     with g4:
         fig = _gauge_chart("Prime Cost %", round(prime_cost_pct, 1), "%",
@@ -1621,6 +1789,7 @@ def render_kpis():
         st.markdown(kpi("📊", "Prime Cost", fmt_pct(prime_cost_pct),
                         "Meta: ≤60-65% (Food+Labor)", pc_color), unsafe_allow_html=True)
         kpi_tip("<b>El KPI mas importante.</b> Suma Food Cost + Labor Cost. Si supera 65%, el negocio no es sostenible. Es la primera alarma que debes mirar cada mes.")
+        kpi_record("prime_cost_pct", prime_cost_pct, higher_is_better=False, is_money=False)
 
     st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
 
@@ -1630,11 +1799,13 @@ def render_kpis():
         st.markdown(kpi("📈", "Margen Bruto", fmt(margen_bruto),
                         f"Ventas: {fmt(total_ventas)} — Costo: {fmt(total_cost)}"), unsafe_allow_html=True)
         kpi_tip("<b>Lo que queda despues de pagar ingredientes.</b> De aqui salen sueldos, arriendo y gastos. Si es bajo, revisa precios de carta o costos de recetas.")
+        kpi_record("margen_bruto", margen_bruto, higher_is_better=True, is_money=True)
     with f2:
         res_color = "normal" if resultado_op > 0 else "red"
         st.markdown(kpi("🏦", "Resultado Operacional", fmt(resultado_op),
                         f"Gastos fijos: {fmt(gastos_fijos)}", res_color), unsafe_allow_html=True)
         kpi_tip("<b>Ganancia o perdida real del mes.</b> Ventas menos todos los costos (ingredientes + sueldos + arriendo + servicios + otros). Si es negativo, estas perdiendo plata.")
+        kpi_record("resultado_op", resultado_op, higher_is_better=True, is_money=True)
     with f3:
         st.markdown(kpi("⚖️", "Punto de Equilibrio", fmt(punto_equilibrio),
                         "Venta minima para cubrir costos fijos"), unsafe_allow_html=True)
@@ -1720,31 +1891,57 @@ def render_kpis():
         st.markdown(kpi("🎫", "Ticket Promedio", fmt(ticket_promedio),
                         f"{num_orders} ordenes"), unsafe_allow_html=True)
         kpi_tip("<b>Gasto promedio por cuenta.</b> Subir el ticket es la forma mas facil de aumentar ventas sin mas clientes. Estrategias: sugerencia de postres, maridaje, promociones por mesa.")
+        kpi_record("ticket_promedio", ticket_promedio, higher_is_better=True, is_money=True)
     with o2:
         st.markdown(kpi("👤", "Gasto por Cliente", fmt(gasto_cliente),
                         f"{total_clients} clientes"), unsafe_allow_html=True)
         kpi_tip("<b>Cuanto gasta cada persona.</b> A diferencia del ticket (por mesa), este mide por persona. Util para comparar almuerzos (1-2 personas) vs cenas (grupos).")
+        kpi_record("gasto_cliente", gasto_cliente, higher_is_better=True, is_money=True)
     with o3:
         revpash_color = "normal" if revpash > 0 else "warn"
         st.markdown(kpi("💺", "RevPASH", fmt(revpash),
                         "Ingreso por asiento por hora", revpash_color), unsafe_allow_html=True)
         kpi_tip("<b>Revenue Per Available Seat Hour.</b> Mide cuanto genera cada asiento por hora. Si es bajo en ciertos turnos, considera promociones en esos horarios o reducir mesas activas.")
+        kpi_record("revpash", revpash, higher_is_better=True, is_money=True)
     with o4:
         rotacion_str = f"{rotacion_mesas:.1f}"
         st.markdown(kpi("🔄", "Rotacion de Mesas", rotacion_str,
                         f"{num_orders} ordenes / {total_tables} mesas"), unsafe_allow_html=True)
         kpi_tip("<b>Cuantas veces se usa cada mesa.</b> Una rotacion de 2 significa que en promedio cada mesa atendio 2 servicios. Mejorar: reducir tiempos de servicio, optimizar reservas.")
+        kpi_record("rotacion_mesas", rotacion_mesas, higher_is_better=True, is_money=False)
 
     o5, o6, _, _ = st.columns(4)
     with o5:
         st.markdown(kpi("📐", "Venta por m²", fmt(venta_m2),
                         f"{m2} m² de local"), unsafe_allow_html=True)
         kpi_tip("<b>Productividad del espacio.</b> Cuanto genera cada metro cuadrado. Si es bajo, el local esta subutilizado. Opciones: delivery, eventos, reorganizar layout.")
+        kpi_record("venta_m2", venta_m2, higher_is_better=True, is_money=True)
     with o6:
         venta_diaria = total_ventas / dias_periodo if dias_periodo else 0
         st.markdown(kpi("📅", "Venta Diaria Prom.", fmt(venta_diaria),
                         f"{dias_periodo} dias operados"), unsafe_allow_html=True)
         kpi_tip("<b>Meta diaria de referencia.</b> Divide tu punto de equilibrio por los dias del mes para saber cuanto necesitas vender cada dia como minimo.")
+        kpi_record("venta_diaria", total_ventas / dias_periodo if dias_periodo else 0, higher_is_better=True, is_money=True)
+
+    # Guardar KPIs del mes en historial
+    _save_kpi_history(kpi_year, selected_month, {
+        "total_ventas": total_ventas,
+        "total_cost": total_cost,
+        "num_orders": num_orders,
+        "total_clients": total_clients,
+        "food_cost_pct": round(food_cost_pct, 1),
+        "labor_cost_pct": round(labor_cost_pct, 1),
+        "rent_cost_pct": round(rent_cost_pct, 1),
+        "prime_cost_pct": round(prime_cost_pct, 1),
+        "margen_bruto": margen_bruto,
+        "resultado_op": resultado_op,
+        "ticket_promedio": round(ticket_promedio, 0),
+        "gasto_cliente": round(gasto_cliente, 0),
+        "revpash": round(revpash, 0),
+        "rotacion_mesas": round(rotacion_mesas, 1),
+        "venta_m2": round(venta_m2, 0),
+        "venta_diaria": round(total_ventas / dias_periodo if dias_periodo else 0, 0),
+    })
 
     # Tabla resumen de todos los KPIs
     st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
