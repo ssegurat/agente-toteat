@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from toteat_api import ToteatAPI
 from tools import TOOLS, execute_tool, execute_tool_multi
 from pronostico import calcular_pronostico_mensual
+from kpis_financieros import calcular_kpis_financieros
 from datetime import date, timedelta
 import time
 
@@ -2015,14 +2016,29 @@ def render_kpis(client=None, local_key="default", local_name=None):
     # CALCULOS DE KPIs
     # ══════════════════════════════════════════
 
-    # Financieros
-    food_cost_pct = (total_cost / total_ventas * 100) if total_ventas else 0
-    labor_cost_pct = (sueldos / total_ventas * 100) if total_ventas else 0
-    rent_cost_pct = (arriendo_clp / total_ventas * 100) if total_ventas else 0
-    prime_cost_pct = food_cost_pct + labor_cost_pct
-    margen_bruto = total_ventas - total_cost
-    resultado_op = total_ventas - total_cost - sueldos - arriendo_clp - servicios - otros
-    punto_equilibrio = gastos_fijos / (1 - food_cost_pct / 100) if food_cost_pct < 100 else 0
+    # Financieros (módulo con cálculo dual real/proyectado)
+    kf = calcular_kpis_financieros(
+        venta_acumulada=total_ventas,
+        costo_alimentos_acumulado=total_cost,
+        sueldos_mensual=sueldos,
+        arriendo_clp=arriendo_clp,
+        servicios_mensual=servicios,
+        otros_gastos_mensual=otros,
+        fecha_desde=first_of_month.isoformat(),
+        fecha_hasta=end_of_month.isoformat(),
+        dias_cierre_semana=defaults.get("dias_cierre_semana", 0),
+    )
+    _kf_ok = not kf.get("sin_ventas", True)
+    _mes_abierto = _kf_ok and not kf.get("mes_cerrado", True)
+
+    # Variables compatibles con el resto de la UI
+    food_cost_pct = kf["food_cost"]["pct_real"] if _kf_ok else 0
+    labor_cost_pct = kf["labor_cost"]["pct_proyectado"] if _kf_ok else 0  # proyectado = correcto
+    rent_cost_pct = kf["rent_cost"]["pct_proyectado"] if _kf_ok else 0
+    prime_cost_pct = kf["prime_cost"]["pct_proyectado"] if _kf_ok else 0
+    margen_bruto = kf["margen_bruto"]["monto_real"] if _kf_ok else 0
+    resultado_op = kf["resultado_operacional"]["monto_real"] if _kf_ok else 0
+    punto_equilibrio = kf["punto_equilibrio"]["monto"] if _kf_ok else 0
 
     # Operativos
     ticket_promedio = total_ventas / num_orders if num_orders else 0
@@ -2068,7 +2084,18 @@ def render_kpis(client=None, local_key="default", local_name=None):
             val_fmt = fmt(best_val) if is_money else f"{best_val:.1f}%"
             return f"⭐ Mejor: {val_fmt} ({month_label}) · +{pct:.1f}%"
 
-    # Gauges
+    # Helper para subtexto de proyección
+    def _proy_sub(label_real, val_proy_pct=None, val_proy_monto=None):
+        """Genera subtexto 'Proyectado al cierre: X%' si mes abierto."""
+        if not _mes_abierto:
+            return label_real
+        if val_proy_pct is not None:
+            return f"{label_real} · <span style='color:{SUCCESS};font-weight:700;'>Proy. cierre: {val_proy_pct:.1f}%</span>"
+        if val_proy_monto is not None:
+            return f"{label_real} · <span style='color:{SUCCESS};font-weight:700;'>Proy. cierre: {fmt(val_proy_monto)}</span>"
+        return label_real
+
+    # Gauges — muestran valor PROYECTADO (correcto) en el gauge, real como referencia
     g1, g2, g3, g4 = st.columns(4)
     with g1:
         fig = _gauge_chart("Food Cost %", round(food_cost_pct, 1), "%",
@@ -2078,7 +2105,7 @@ def render_kpis(client=None, local_key="default", local_name=None):
         st.markdown(kpi("🥩", "Food Cost", fmt_pct(food_cost_pct),
                         f"Meta: 28-35% · {fmt(total_cost)}", fc_color,
                         record=kpi_record("food_cost_pct", food_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
-        kpi_tip("<b>Costo de alimentos sobre ventas.</b> Mide cuanto de cada $100 que vendes se va en ingredientes. Si sube, revisa proveedores, merma o porciones.")
+        kpi_tip("<b>Costo de alimentos sobre ventas.</b> Mide cuanto de cada $100 que vendes se va en ingredientes.")
 
     with g2:
         fig = _gauge_chart("Labor Cost %", round(labor_cost_pct, 1), "%",
@@ -2088,10 +2115,11 @@ def render_kpis(client=None, local_key="default", local_name=None):
         if sueldos == 0:
             st.caption("Ingresa sueldos para calcular Labor Cost")
         else:
+            _lc_sub = _proy_sub(f"Meta: ≤30% · {fmt(sueldos)}", val_proy_pct=kf["labor_cost"]["pct_proyectado"] if _kf_ok else None)
             st.markdown(kpi("👨‍🍳", "Labor Cost", fmt_pct(labor_cost_pct),
-                            f"Meta: ≤30% · {fmt(sueldos)}", lc_color,
+                            _lc_sub, lc_color,
                             record=kpi_record("labor_cost_pct", labor_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
-        kpi_tip("<b>Costo de personal sobre ventas.</b> Incluye sueldos, imposiciones y beneficios. Si es muy alto, necesitas vender mas o ajustar dotacion en turnos bajos.")
+        kpi_tip("<b>Costo de personal sobre ventas.</b> Incluye sueldos, imposiciones y beneficios." + (" <b>Valor proyectado al cierre del mes.</b>" if _mes_abierto else ""))
 
     with g3:
         fig = _gauge_chart("Rent Cost %", round(rent_cost_pct, 1), "%",
@@ -2101,40 +2129,50 @@ def render_kpis(client=None, local_key="default", local_name=None):
         if arriendo_uf == 0:
             st.caption("Ingresa arriendo para calcular Rent Cost")
         else:
+            _rc_sub = _proy_sub(f"Meta: ≤8-10% · {fmt(arriendo_clp)}", val_proy_pct=kf["rent_cost"]["pct_proyectado"] if _kf_ok else None)
             st.markdown(kpi("🏠", "Rent Cost", fmt_pct(rent_cost_pct),
-                            f"Meta: ≤8-10% · {fmt(arriendo_clp)}", rc_color,
+                            _rc_sub, rc_color,
                             record=kpi_record("rent_cost_pct", rent_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
-        kpi_tip("<b>Costo de arriendo sobre ventas.</b> Si supera el 10%, el local no genera suficiente venta para justificar su ubicacion. Renegociar arriendo o aumentar ventas.")
+        kpi_tip("<b>Costo de arriendo sobre ventas.</b> Si supera 10%, renegociar arriendo o aumentar ventas." + (" <b>Valor proyectado al cierre.</b>" if _mes_abierto else ""))
 
     with g4:
         fig = _gauge_chart("Prime Cost %", round(prime_cost_pct, 1), "%",
                            green_range=(50, 60), red_threshold=65, max_val=100)
         st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
         pc_color = _kpi_color(prime_cost_pct, (50, 60), (45, 65))
+        _pc_sub = _proy_sub("Meta: ≤60-65% (Food+Labor)", val_proy_pct=kf["prime_cost"]["pct_proyectado"] if _kf_ok else None)
         st.markdown(kpi("📊", "Prime Cost", fmt_pct(prime_cost_pct),
-                        "Meta: ≤60-65% (Food+Labor)", pc_color,
+                        _pc_sub, pc_color,
                         record=kpi_record("prime_cost_pct", prime_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
-        kpi_tip("<b>El KPI mas importante.</b> Suma Food Cost + Labor Cost. Si supera 65%, el negocio no es sostenible. Es la primera alarma que debes mirar cada mes.")
+        kpi_tip("<b>El KPI mas importante.</b> Suma Food Cost + Labor Cost. Si supera 65%, el negocio no es sostenible." + (" <b>Valor proyectado al cierre.</b>" if _mes_abierto else ""))
+
+    if _mes_abierto:
+        st.markdown(f'<div style="font-size:0.72rem;color:{SUCCESS};font-weight:600;text-align:center;margin:8px 0;">📊 Los % de Labor, Rent y Prime Cost muestran valores proyectados al cierre del mes (basado en {kf["dias_operados"]} de {kf["dias_operables_mes"]} dias operables)</div>', unsafe_allow_html=True)
 
     st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
 
-    # Cards financieros
+    # Cards financieros — muestran REAL con proyección al cierre como subtexto
     f1, f2, f3 = st.columns(3)
     with f1:
-        st.markdown(kpi("📈", "Margen Bruto", fmt(margen_bruto),
-                        f"Ventas: {fmt(total_ventas)} — Costo: {fmt(total_cost)}",
+        _mb_sub = _proy_sub(f"Ventas: {fmt(total_ventas)} — Costo: {fmt(total_cost)}",
+                            val_proy_monto=kf["margen_bruto"]["monto_proyectado"] if _kf_ok else None)
+        st.markdown(kpi("📈", "Margen Bruto", fmt(margen_bruto), _mb_sub,
                         record=kpi_record("margen_bruto", margen_bruto, higher_is_better=True, is_money=True)), unsafe_allow_html=True)
-        kpi_tip("<b>Lo que queda despues de pagar ingredientes.</b> De aqui salen sueldos, arriendo y gastos. Si es bajo, revisa precios de carta o costos de recetas.")
+        kpi_tip("<b>Lo que queda despues de pagar ingredientes.</b> De aqui salen sueldos, arriendo y gastos.")
     with f2:
         res_color = "normal" if resultado_op > 0 else "red"
-        st.markdown(kpi("🏦", "Resultado Operacional", fmt(resultado_op),
-                        f"Gastos fijos: {fmt(gastos_fijos)}", res_color,
+        _ro_sub = _proy_sub(f"Gastos fijos: {fmt(gastos_fijos)}",
+                            val_proy_monto=kf["resultado_operacional"]["monto_proyectado"] if _kf_ok else None)
+        st.markdown(kpi("🏦", "Resultado Operacional", fmt(resultado_op), _ro_sub, res_color,
                         record=kpi_record("resultado_op", resultado_op, higher_is_better=True, is_money=True)), unsafe_allow_html=True)
-        kpi_tip("<b>Ganancia o perdida real del mes.</b> Ventas menos todos los costos (ingredientes + sueldos + arriendo + servicios + otros). Si es negativo, estas perdiendo plata.")
+        kpi_tip("<b>Ganancia o perdida del periodo.</b> Ventas menos todos los costos." + (f" <b>Proyectado al cierre: {fmt(kf['resultado_operacional']['monto_proyectado'])}</b>" if _mes_abierto and _kf_ok else ""))
     with f3:
-        st.markdown(kpi("⚖️", "Punto de Equilibrio", fmt(punto_equilibrio),
-                        "Venta minima para cubrir costos fijos"), unsafe_allow_html=True)
-        kpi_tip("<b>Cuanto necesitas vender para no perder.</b> Cada peso por debajo es perdida, cada peso por encima es ganancia. Dividelo por dias del mes para saber tu meta diaria.")
+        _pe_cubierto = kf["punto_equilibrio"]["cubierto"] if _kf_ok else False
+        _pe_sub = "Venta minima para cubrir costos fijos"
+        if _pe_cubierto:
+            _pe_sub = f'<span style="color:{SUCCESS};font-weight:700;">✓ Cubierto por pronostico</span>'
+        st.markdown(kpi("⚖️", "Punto de Equilibrio", fmt(punto_equilibrio), _pe_sub), unsafe_allow_html=True)
+        kpi_tip("<b>Cuanto necesitas vender para no perder.</b> Cada peso por debajo es perdida, cada peso por encima es ganancia.")
 
     # Barra de progreso hacia punto de equilibrio
     if punto_equilibrio > 0:
