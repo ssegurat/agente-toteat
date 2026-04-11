@@ -694,11 +694,11 @@ def get_uf_value():
         return 39855  # Fallback aproximado
 
 
-def parallel_load(tasks: dict):
-    """Carga multiple API calls en paralelo. tasks = {key: callable}. Retorna {key: result}."""
+def parallel_load(tasks: dict, max_workers=3):
+    """Carga multiple API calls en paralelo (max 3 simultáneas para evitar 429)."""
     from concurrent.futures import ThreadPoolExecutor, as_completed
     results = {}
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_key = {executor.submit(fn): key for key, fn in tasks.items()}
         for future in as_completed(future_to_key):
             key = future_to_key[future]
@@ -946,7 +946,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                     if not prev:
                         st.caption(f"Comparando {prev_label} — sin datos en el periodo anterior")
                 except Exception as e:
-                    st.caption(f"Comparando {prev_label} — no se pudo obtener datos: {e}")
+                    st.caption(f"Comparando {prev_label} — no se pudo obtener datos (reintenta en unos segundos)")
                     prev = None
 
             # Deltas (% y monto absoluto)
@@ -2316,7 +2316,7 @@ def render_consolidated_dashboard(clients, locals_config, allowed_locals):
                     if not prev:
                         st.caption(f"Comparando {prev_label} — sin datos en el periodo anterior")
                 except Exception as e:
-                    st.caption(f"Comparando {prev_label} — no se pudo obtener datos: {e}")
+                    st.caption(f"Comparando {prev_label} — no se pudo obtener datos (reintenta en unos segundos)")
                     prev = None
 
             # Deltas
