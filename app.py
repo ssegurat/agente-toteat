@@ -1660,184 +1660,82 @@ def _gauge_chart(title, value, suffix, green_range, red_threshold, max_val=100):
 
 
 def render_onboarding_wizard(kpi_year, selected_month):
-    """Wizard de onboarding mobile-first para capturar gastos del restaurante."""
+    """Wizard de onboarding — formulario unico, un solo rerun al guardar."""
 
-    if "onboarding_step" not in st.session_state:
-        st.session_state.onboarding_step = 0
-    if "wiz_sueldos" not in st.session_state:
-        st.session_state.wiz_sueldos = 0
-    if "wiz_arriendo_uf" not in st.session_state:
-        st.session_state.wiz_arriendo_uf = 0.0
-    if "wiz_servicios" not in st.session_state:
-        st.session_state.wiz_servicios = 0
-    if "wiz_otros" not in st.session_state:
-        st.session_state.wiz_otros = 0
-    if "wiz_horas" not in st.session_state:
-        st.session_state.wiz_horas = 12
-    if "wiz_m2" not in st.session_state:
-        st.session_state.wiz_m2 = 100
-    if "wiz_empleados" not in st.session_state:
-        st.session_state.wiz_empleados = 10
+    st.markdown(f"""<div class="wizard-container">
+        <div class="wizard-icon">📊</div>
+        <div class="wizard-title">Configura tu local en 1 minuto</div>
+        <div class="wizard-subtitle">
+            Completa estos datos para desbloquear tus KPIs financieros.
+            <br>Todo se guarda automaticamente.
+        </div>
+    </div>""", unsafe_allow_html=True)
 
-    step = st.session_state.onboarding_step
-    total_steps = 4
+    with st.form("onboarding_form"):
+        # ── Sueldos ──
+        st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:{TEXT_PRIMARY};margin-top:8px;">👨‍🍳 Sueldos del equipo</div>', unsafe_allow_html=True)
+        wiz_sueldos = st.number_input(
+            "Total bruto mensual (CLP)", min_value=0, step=100000, value=0, key="wiz_sueldos")
+        st.markdown(f'<div class="wizard-tip">Incluye sueldos brutos, imposiciones y beneficios.</div>', unsafe_allow_html=True)
 
-    def progress_dots(current, total):
-        dots = ""
-        for i in range(1, total + 1):
-            if i < current:
-                dots += '<div class="wizard-dot done"></div>'
-            elif i == current:
-                dots += '<div class="wizard-dot active"></div>'
-            else:
-                dots += '<div class="wizard-dot"></div>'
-        return f'<div class="wizard-progress">{dots}</div>'
-
-    def next_step():
-        st.session_state.onboarding_step += 1
-
-    def prev_step():
-        st.session_state.onboarding_step -= 1
-
-    # ── PASO 0: Bienvenida ──
-    if step == 0:
-        st.markdown(f"""<div class="wizard-container">
-            <div class="wizard-icon">📊</div>
-            <div class="wizard-title">Desbloquea tus indicadores financieros</div>
-            <div class="wizard-subtitle">
-                En <b>2 minutos</b> vamos a configurar los datos de tu local
-                para mostrarte KPIs que te van a volar la cabeza.
-            </div>
-        </div>""", unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("🚀 Comenzar", use_container_width=True, type="primary"):
-                next_step()
-                st.rerun()
-        with c2:
-            if st.button("Saltar por ahora", use_container_width=True):
-                st.session_state.onboarding_step = 99
-                st.rerun()
-        return True
-
-    # ── PASO 1: Sueldos ──
-    elif step == 1:
-        st.markdown(progress_dots(1, total_steps), unsafe_allow_html=True)
-        st.markdown(f"""<div class="wizard-container">
-            <div class="wizard-icon">👨‍🍳</div>
-            <div class="wizard-title">¿Cuanto pagas en sueldos?</div>
-            <div class="wizard-subtitle">Total bruto mensual de todo tu equipo</div>
-        </div>""", unsafe_allow_html=True)
-        st.session_state.wiz_sueldos = st.number_input(
-            "Sueldos mensuales (CLP)", min_value=0, step=100000,
-            value=st.session_state.wiz_sueldos, key="wiz_input_sueldos")
-        st.markdown(f'<div class="wizard-tip">💡 Incluye sueldos brutos, imposiciones, gratificaciones y beneficios de todo el personal.</div>', unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("← Atras", use_container_width=True):
-                prev_step()
-                st.rerun()
-        with c2:
-            if st.button("Siguiente →", use_container_width=True, type="primary"):
-                next_step()
-                st.rerun()
-        return True
-
-    # ── PASO 2: Arriendo ──
-    elif step == 2:
-        st.markdown(progress_dots(2, total_steps), unsafe_allow_html=True)
-        st.markdown(f"""<div class="wizard-container">
-            <div class="wizard-icon">🏠</div>
-            <div class="wizard-title">¿Cuanto pagas de arriendo?</div>
-            <div class="wizard-subtitle">Ingresalo en UF y lo convertimos automaticamente</div>
-        </div>""", unsafe_allow_html=True)
-        st.session_state.wiz_arriendo_uf = st.number_input(
-            "Arriendo mensual (UF)", min_value=0.0, step=1.0, format="%.1f",
-            value=st.session_state.wiz_arriendo_uf, key="wiz_input_arriendo")
-        uf_val = get_uf_value()
-        if st.session_state.wiz_arriendo_uf > 0 and uf_val:
-            clp = st.session_state.wiz_arriendo_uf * uf_val
-            st.markdown(f'<div class="wizard-tip">💰 Equivale a <b>${clp:,.0f} CLP</b> (UF a ${uf_val:,.0f})</div>'.replace(",", "."), unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("← Atras", use_container_width=True, key="wiz_back_2"):
-                prev_step()
-                st.rerun()
-        with c2:
-            if st.button("Siguiente →", use_container_width=True, type="primary", key="wiz_next_2"):
-                next_step()
-                st.rerun()
-        return True
-
-    # ── PASO 3: Servicios + Otros + Parametros ──
-    elif step == 3:
-        st.markdown(progress_dots(3, total_steps), unsafe_allow_html=True)
-        st.markdown(f"""<div class="wizard-container">
-            <div class="wizard-icon">⚡</div>
-            <div class="wizard-title">Otros gastos y datos del local</div>
-        </div>""", unsafe_allow_html=True)
-        st.session_state.wiz_servicios = st.number_input(
-            "Servicios basicos — luz, agua, gas (CLP)", min_value=0, step=50000,
-            value=st.session_state.wiz_servicios, key="wiz_input_servicios")
-        st.session_state.wiz_otros = st.number_input(
-            "Otros gastos — insumos, mantencion, marketing (CLP)", min_value=0, step=50000,
-            value=st.session_state.wiz_otros, key="wiz_input_otros")
         st.markdown("---")
-        st.session_state.wiz_horas = st.slider(
-            "Horas de operacion por dia", min_value=1, max_value=24,
-            value=st.session_state.wiz_horas, key="wiz_input_horas")
+
+        # ── Arriendo ──
+        st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:{TEXT_PRIMARY};">🏠 Arriendo</div>', unsafe_allow_html=True)
+        wiz_arriendo = st.number_input(
+            "Arriendo mensual (UF)", min_value=0.0, step=1.0, format="%.1f", value=0.0, key="wiz_arriendo")
+        uf_val = get_uf_value()
+        if wiz_arriendo > 0 and uf_val:
+            clp = wiz_arriendo * uf_val
+            st.caption(f"= ${clp:,.0f} CLP".replace(",", "."))
+
+        st.markdown("---")
+
+        # ── Servicios + Otros ──
+        st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:{TEXT_PRIMARY};">⚡ Otros gastos mensuales</div>', unsafe_allow_html=True)
         gc1, gc2 = st.columns(2)
         with gc1:
-            st.session_state.wiz_m2 = st.number_input(
-                "Metros cuadrados", min_value=1, step=10,
-                value=st.session_state.wiz_m2, key="wiz_input_m2")
+            wiz_servicios = st.number_input("Servicios (luz, agua, gas)", min_value=0, step=50000, value=0, key="wiz_servicios")
         with gc2:
-            st.session_state.wiz_empleados = st.number_input(
-                "Num. empleados", min_value=1, step=1,
-                value=st.session_state.wiz_empleados, key="wiz_input_empleados")
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("← Atras", use_container_width=True, key="wiz_back_3"):
-                prev_step()
-                st.rerun()
-        with c2:
-            if st.button("Finalizar ✨", use_container_width=True, type="primary", key="wiz_next_3"):
-                # Guardar todo
-                month_expenses = {
-                    "sueldos": st.session_state.wiz_sueldos,
-                    "arriendo_uf": st.session_state.wiz_arriendo_uf,
-                    "servicios": st.session_state.wiz_servicios,
-                    "otros": st.session_state.wiz_otros,
-                }
-                _save_month_expenses(kpi_year, selected_month, month_expenses)
-                defaults = {
-                    "horas_op": st.session_state.wiz_horas,
-                    "m2": st.session_state.wiz_m2,
-                    "num_empleados": st.session_state.wiz_empleados,
-                }
-                _save_restaurant_defaults(defaults)
-                next_step()
-                st.rerun()
-        return True
+            wiz_otros = st.number_input("Otros (insumos, marketing)", min_value=0, step=50000, value=0, key="wiz_otros")
 
-    # ── PASO 4: Resultado ──
-    elif step == 4:
-        st.markdown(progress_dots(4, total_steps), unsafe_allow_html=True)
-        st.markdown(f"""<div class="wizard-container">
-            <div class="wizard-celebration">🎉</div>
-            <div class="wizard-title">¡Todo listo!</div>
-            <div class="wizard-subtitle">
-                Ya configuraste tu local. Ahora vas a ver tus indicadores financieros
-                calculados con datos reales.
-            </div>
-        </div>""", unsafe_allow_html=True)
+        st.markdown("---")
+
+        # ── Datos del local ──
+        st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:{TEXT_PRIMARY};">🍽️ Tu local</div>', unsafe_allow_html=True)
+        gc3, gc4, gc5 = st.columns(3)
+        with gc3:
+            wiz_horas = st.number_input("Horas/dia", min_value=1, max_value=24, value=12, key="wiz_horas")
+        with gc4:
+            wiz_m2 = st.number_input("m²", min_value=1, step=10, value=100, key="wiz_m2")
+        with gc5:
+            wiz_empleados = st.number_input("Empleados", min_value=1, value=10, key="wiz_empleados")
+
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            submitted = st.form_submit_button("🚀 Ver mis KPIs", use_container_width=True, type="primary")
+        with col2:
+            skipped = st.form_submit_button("Saltar por ahora", use_container_width=True)
+
+    if submitted:
+        _save_month_expenses(kpi_year, selected_month, {
+            "sueldos": wiz_sueldos, "arriendo_uf": wiz_arriendo,
+            "servicios": wiz_servicios, "otros": wiz_otros,
+        })
+        _save_restaurant_defaults({"horas_op": wiz_horas, "m2": wiz_m2, "num_empleados": wiz_empleados})
+        st.session_state.onboarding_done = True
         st.balloons()
-        if st.button("📊 Ver mis KPIs", use_container_width=True, type="primary", key="wiz_finish"):
-            st.session_state.onboarding_step = 99
-            st.rerun()
+        st.rerun()
         return True
 
-    return False
+    if skipped:
+        st.session_state.onboarding_done = True
+        st.rerun()
+        return True
+
+    return True
 
 
 def render_kpis(client=None, local_key="default", local_name=None):
@@ -1894,11 +1792,9 @@ def render_kpis(client=None, local_key="default", local_name=None):
     month_expenses = _load_month_expenses(kpi_year, selected_month)
 
     # Mostrar wizard si no hay gastos cargados para este mes
-    onboarding_step = st.session_state.get("onboarding_step", 0)
-    if not month_expenses and onboarding_step < 5 and onboarding_step != 99:
+    if not month_expenses and not st.session_state.get("onboarding_done", False):
         if render_onboarding_wizard(kpi_year, selected_month):
             return
-        # Recargar despues del wizard
         month_expenses = _load_month_expenses(kpi_year, selected_month)
         defaults = _load_restaurant_defaults()
 
