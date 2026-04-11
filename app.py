@@ -1028,7 +1028,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                         hovertemplate="<b>%{x}</b><br>Venta: $%{y:,.0f}<extra></extra>",
                     ))
                     fig.update_layout(title="Ventas por Hora", height=300, **PLOTLY_LAYOUT)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
             with ch2:
                 if s["payments"]:
@@ -1041,7 +1041,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                         hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
                     ))
                     fig.update_layout(title="Formas de Pago", height=300, showlegend=False, **PLOTLY_LAYOUT)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
             # ── Row 2: Familias + Canales ──
             ch3, ch4 = st.columns(2)
@@ -1059,7 +1059,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                         hovertemplate="<b>%{y}</b><br>$%{x:,.0f}<extra></extra>",
                     ))
                     fig.update_layout(title="Top 15 Familias de Producto", height=420, **PLOTLY_LAYOUT)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
             with ch4:
                 # Salon vs Delivery
@@ -1078,7 +1078,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                     hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
                 ))
                 fig.update_layout(title="Salon vs Delivery", height=280, showlegend=False, **PLOTLY_LAYOUT)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
                 # Detalle delivery
                 if s["delivery_detail"]:
@@ -1096,7 +1096,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                     layout["margin"] = dict(l=16, r=16, t=40, b=16)
                     fig2.update_layout(title="Detalle por Canal Delivery", height=300,
                                        yaxis_range=[0, df_del["Venta"].max() * 1.25], **layout)
-                    st.plotly_chart(fig2, use_container_width=True)
+                    st.plotly_chart(fig2, use_container_width=True, config={"staticPlot": True})
 
             # ── Top Productos ──
             sec("🏆", "Top 15 Productos")
@@ -1114,7 +1114,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                     hovertemplate="<b>%{x}</b><br>$%{y:,.0f}<extra></extra>",
                 ))
                 fig.update_layout(height=340, **PLOTLY_LAYOUT, xaxis_tickangle=-45)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
                 with st.expander("Ver tabla de productos con margen"):
                     ds = df_prod.copy()
@@ -1138,7 +1138,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                         hovertemplate="<b>%{y}</b><br>$%{x:,.0f}<extra></extra>",
                     ))
                     fig.update_layout(title="Ranking de Ventas", height=max(280, len(df_w)*40), **PLOTLY_LAYOUT)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
                     best = df_w.iloc[-1]
                     c1, c2, c3 = st.columns(3)
@@ -1285,7 +1285,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                         hovertemplate="<b>%{label}</b><br>%{value} docs<br>%{percent}<extra></extra>",
                     ))
                     fig.update_layout(title="Documentos por Tipo (Cantidad)", height=300, showlegend=False, **PLOTLY_LAYOUT)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
             with ch2:
                 if monto_boletas or monto_facturas:
@@ -1298,7 +1298,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                         hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
                     ))
                     fig.update_layout(title="Documentos por Tipo (Monto)", height=300, showlegend=False, **PLOTLY_LAYOUT)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
             # Tabla detalle
             with st.expander("Ver detalle de documentos fiscales"):
@@ -1420,7 +1420,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                         hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
                     ))
                     fig.update_layout(title="Recaudacion por Medio de Pago", height=340, showlegend=False, **PLOTLY_LAYOUT)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
                 with ch_coll2:
                     df_coll_display = df_coll.copy()
@@ -1596,7 +1596,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                     yaxis_range=[0, max(total_ingresos, total_egresos) * 1.25],
                     **PLOTLY_LAYOUT,
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
             if rows_acc:
                 with st.expander("Ver tabla de movimientos contables"):
@@ -1785,7 +1785,7 @@ def render_onboarding_wizard(kpi_year, selected_month):
         with col1:
             submitted = st.form_submit_button("🚀 Ver mis KPIs", use_container_width=True, type="primary")
         with col2:
-            skipped = st.form_submit_button("Saltar por ahora", use_container_width=True)
+            skipped = st.form_submit_button("Saltar por ahora", use_container_width=True, config={"staticPlot": True})
 
     if submitted:
         _save_month_expenses(kpi_year, selected_month, {
@@ -2015,7 +2015,7 @@ def render_kpis(client=None, local_key="default", local_name=None):
     with g1:
         fig = _gauge_chart("Food Cost %", round(food_cost_pct, 1), "%",
                            green_range=(28, 35), red_threshold=40)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
         fc_color = _kpi_color(food_cost_pct, (28, 35), (22, 40))
         st.markdown(kpi("🥩", "Food Cost", fmt_pct(food_cost_pct),
                         f"Meta: 28-35% · {fmt(total_cost)}", fc_color,
@@ -2025,7 +2025,7 @@ def render_kpis(client=None, local_key="default", local_name=None):
     with g2:
         fig = _gauge_chart("Labor Cost %", round(labor_cost_pct, 1), "%",
                            green_range=(20, 30), red_threshold=35)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
         lc_color = _kpi_color(labor_cost_pct, (20, 30), (15, 35))
         if sueldos == 0:
             st.caption("Ingresa sueldos para calcular Labor Cost")
@@ -2038,7 +2038,7 @@ def render_kpis(client=None, local_key="default", local_name=None):
     with g3:
         fig = _gauge_chart("Rent Cost %", round(rent_cost_pct, 1), "%",
                            green_range=(5, 8), red_threshold=10)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
         rc_color = _kpi_color(rent_cost_pct, (5, 8), (3, 10))
         if arriendo_uf == 0:
             st.caption("Ingresa arriendo para calcular Rent Cost")
@@ -2051,7 +2051,7 @@ def render_kpis(client=None, local_key="default", local_name=None):
     with g4:
         fig = _gauge_chart("Prime Cost %", round(prime_cost_pct, 1), "%",
                            green_range=(50, 60), red_threshold=65, max_val=100)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
         pc_color = _kpi_color(prime_cost_pct, (50, 60), (45, 65))
         st.markdown(kpi("📊", "Prime Cost", fmt_pct(prime_cost_pct),
                         "Meta: ≤60-65% (Food+Labor)", pc_color,
@@ -2122,7 +2122,7 @@ def render_kpis(client=None, local_key="default", local_name=None):
                     hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
                 ))
                 fig.update_layout(title="Desglose de Costos", height=300, showlegend=False, **PLOTLY_LAYOUT)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
         with dc2:
             # Waterfall de resultado
@@ -2141,7 +2141,7 @@ def render_kpis(client=None, local_key="default", local_name=None):
                 textfont=dict(size=10, color=TEXT_SECONDARY),
             ))
             fig.update_layout(title="Cascada de Resultado Operacional", height=300, **PLOTLY_LAYOUT)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
     # ══════════════════════════════════════════
     # SECCION 3: KPIs OPERATIVOS
@@ -2395,7 +2395,7 @@ def render_consolidated_dashboard(clients, locals_config, allowed_locals):
                         hovertemplate="<b>%{x}</b><br>Venta: $%{y:,.0f}<extra></extra>",
                     ))
                     fig.update_layout(title="Ventas por Hora (Red)", height=300, **PLOTLY_LAYOUT)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
             with ch2:
                 if s["payments"]:
@@ -2408,7 +2408,7 @@ def render_consolidated_dashboard(clients, locals_config, allowed_locals):
                         hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
                     ))
                     fig.update_layout(title="Formas de Pago (Red)", height=300, showlegend=False, **PLOTLY_LAYOUT)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
             # ── Row 2: Familias + Canales ──
             ch3, ch4 = st.columns(2)
@@ -2426,7 +2426,7 @@ def render_consolidated_dashboard(clients, locals_config, allowed_locals):
                         hovertemplate="<b>%{y}</b><br>$%{x:,.0f}<extra></extra>",
                     ))
                     fig.update_layout(title="Top 15 Familias (Red)", height=420, **PLOTLY_LAYOUT)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
             with ch4:
                 salon_t = s["channels"]["Salon"]["total"]
@@ -2440,7 +2440,7 @@ def render_consolidated_dashboard(clients, locals_config, allowed_locals):
                     hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
                 ))
                 fig.update_layout(title="Salon vs Delivery (Red)", height=280, showlegend=False, **PLOTLY_LAYOUT)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
                 if s["delivery_detail"]:
                     df_del = pd.DataFrame([{"Canal": k, "Ordenes": v["orders"], "Venta": v["total"]}
@@ -2457,7 +2457,7 @@ def render_consolidated_dashboard(clients, locals_config, allowed_locals):
                     layout["margin"] = dict(l=16, r=16, t=40, b=16)
                     fig2.update_layout(title="Detalle Delivery (Red)", height=300,
                                        yaxis_range=[0, df_del["Venta"].max() * 1.25], **layout)
-                    st.plotly_chart(fig2, use_container_width=True)
+                    st.plotly_chart(fig2, use_container_width=True, config={"staticPlot": True})
 
             # ── Top Productos ──
             sec("🏆", "Top 15 Productos (Red)")
@@ -2475,7 +2475,7 @@ def render_consolidated_dashboard(clients, locals_config, allowed_locals):
                     hovertemplate="<b>%{x}</b><br>$%{y:,.0f}<extra></extra>",
                 ))
                 fig.update_layout(height=340, **PLOTLY_LAYOUT, xaxis_tickangle=-45)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
                 with st.expander("Ver tabla de productos con margen"):
                     ds = df_prod.copy()
@@ -2499,7 +2499,7 @@ def render_consolidated_dashboard(clients, locals_config, allowed_locals):
                         hovertemplate="<b>%{y}</b><br>$%{x:,.0f}<extra></extra>",
                     ))
                     fig.update_layout(title="Ranking de Ventas (Red)", height=max(280, len(df_w) * 40), **PLOTLY_LAYOUT)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
                     with st.expander("Ver tabla de meseros"):
                         ws = df_w.sort_values("Venta", ascending=False).copy()
@@ -2540,7 +2540,7 @@ def render_consolidated_dashboard(clients, locals_config, allowed_locals):
                         hovertemplate="<b>%{y}</b><br>$%{x:,.0f}<extra></extra>",
                     ))
                     fig.update_layout(title="Ranking de Locales por Venta", height=max(280, len(df_bar) * 50), **PLOTLY_LAYOUT)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
                     # Table
                     df_display = df_comp.copy()
@@ -2770,7 +2770,7 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
     with g1:
         fig = _gauge_chart("Food Cost %", round(food_cost_pct, 1), "%",
                            green_range=(28, 35), red_threshold=40)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
         fc_color = _kpi_color(food_cost_pct, (28, 35), (22, 40))
         st.markdown(kpi("🥩", "Food Cost", fmt_pct(food_cost_pct),
                         f"Meta: 28-35% · {fmt(total_cost)}", fc_color), unsafe_allow_html=True)
@@ -2778,7 +2778,7 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
     with g2:
         fig = _gauge_chart("Labor Cost %", round(labor_cost_pct, 1), "%",
                            green_range=(20, 30), red_threshold=35)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
         lc_color = _kpi_color(labor_cost_pct, (20, 30), (15, 35))
         if total_sueldos == 0:
             st.caption("Configura sueldos por local para calcular Labor Cost")
@@ -2789,7 +2789,7 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
     with g3:
         fig = _gauge_chart("Rent Cost %", round(rent_cost_pct, 1), "%",
                            green_range=(5, 8), red_threshold=10)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
         rc_color = _kpi_color(rent_cost_pct, (5, 8), (3, 10))
         if total_arriendo_uf == 0:
             st.caption("Configura arriendo por local para calcular Rent Cost")
@@ -2800,7 +2800,7 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
     with g4:
         fig = _gauge_chart("Prime Cost %", round(prime_cost_pct, 1), "%",
                            green_range=(50, 60), red_threshold=65, max_val=100)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
         pc_color = _kpi_color(prime_cost_pct, (50, 60), (45, 65))
         st.markdown(kpi("📊", "Prime Cost", fmt_pct(prime_cost_pct),
                         "Meta: ≤60-65% (Food+Labor)", pc_color), unsafe_allow_html=True)
@@ -2864,7 +2864,7 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
                     hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
                 ))
                 fig.update_layout(title="Desglose de Costos (Red)", height=300, showlegend=False, **PLOTLY_LAYOUT)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
         with dc2:
             cat_names = ["Ventas", "Food Cost", "Sueldos", "Arriendo", "Servicios", "Otros", "Resultado"]
@@ -2882,7 +2882,7 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
                 textfont=dict(size=10, color=TEXT_SECONDARY),
             ))
             fig.update_layout(title="Cascada de Resultado (Red)", height=300, **PLOTLY_LAYOUT)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
     # ══════════════════════════════════════════
     # KPIs OPERATIVOS
