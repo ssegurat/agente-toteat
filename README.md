@@ -254,6 +254,73 @@ kpi_history.json        # Historial de KPIs por mes (auto-generado, gitignored)
 
 ---
 
+## Base de Datos (Supabase)
+
+El modulo de administracion y facturacion usa **Supabase** (PostgreSQL) como backend.
+
+| Dato | Valor |
+|------|-------|
+| Proyecto | Toteat Intelligence |
+| Region | South America (Sao Paulo) |
+| Plan | Free (500MB, suficiente para miles de usuarios) |
+| Dashboard | https://supabase.com/dashboard/project/kdeirfyatgmnxwzccrqi |
+| Project URL | `https://kdeirfyatgmnxwzccrqi.supabase.co` |
+
+### Tablas principales
+- `companies` — Empresas/cadenas de restaurantes
+- `restaurants` — Locales con credenciales Toteat y params operativos
+- `users` — Usuarios con roles (admin, manager, viewer) y tokens de acceso
+- `user_restaurants` — Permisos usuario-local
+- `subscriptions` — Suscripciones Mercado Pago
+- `payments` — Historial de pagos
+- `invitations` — Invitaciones virales al equipo
+- `usage_logs` — Metricas de uso
+
+---
+
+## Roadmap
+
+### Fase 1: MVP Admin (En desarrollo)
+- CRUD empresas, locales, usuarios
+- Conexion dashboard con Supabase (reemplazar Secrets)
+- Test de conexion de credenciales Toteat
+
+### Fase 1.5: Sistema de Invitaciones Viral
+- "Invitar miembro del equipo" desde el dashboard
+- Cada usuario nuevo = +$19/mes automatico
+- Gestion de equipo (roles, permisos, locales)
+
+### Fase 2: Facturacion
+- Mercado Pago (suscripciones recurrentes)
+- Landing page self-service con trial de 7 dias
+- Panel de facturacion (MRR, morosidad, pagos)
+
+### Fase 3: Metricas de Uso
+- DAU/WAU/MAU, features mas usadas, churn risk
+- Reportes de negocio (MRR, LTV, churn rate)
+
+### Fase 4: App Stores
+- PWA instalable desde navegador
+- Wrapper nativo para Google Play y Apple App Store
+
+### Fase 5: Mejoras Avanzadas
+- Planes (Basico $19 / Pro $49 / Enterprise custom)
+- Notificaciones (email, WhatsApp, push)
+- API propia para integraciones
+
+---
+
+## Modelo de Negocio
+
+| Concepto | Detalle |
+|----------|---------|
+| Precio | USD $19/mes por usuario + impuestos |
+| Trial | 7 dias gratis, sin tarjeta requerida |
+| Cobro | Mercado Pago, suscripcion recurrente |
+| Crecimiento | Invitaciones virales (cada usuario invita a su equipo) |
+
+---
+
 ## Licencia
 
 Proyecto privado. Todos los derechos reservados.

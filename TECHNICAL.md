@@ -400,3 +400,80 @@ La API de Toteat tiene un rate limit estricto (~3 req/min). La estrategia combin
 4. **Sleep entre locales**: En modo multi-sucursal, 1 segundo entre cada local
 
 **Trade-off**: La carga inicial puede ser lenta (especialmente con rangos largos y multiples locales), pero las cargas subsiguientes son instantaneas gracias al cache.
+
+---
+
+## 10. Base de Datos (Supabase)
+
+### Conexion
+
+| Parametro | Valor |
+|-----------|-------|
+| Project URL | `https://kdeirfyatgmnxwzccrqi.supabase.co` |
+| Region | South America (Sao Paulo) |
+| Plan | Free (500MB PostgreSQL) |
+
+### Modelo de Datos
+
+```
+companies 1---N restaurants
+companies 1---N users
+companies 1---N subscriptions
+companies 1---N invitations
+users N---M restaurants (via user_restaurants)
+subscriptions 1---N payments
+users 1---N usage_logs
+users 1---N invitations (invited_by)
+```
+
+### Tablas
+
+**companies**: Empresas/cadenas. Campos: id, name, rut, contact_email, plan, status (trial/active/suspended/cancelled), trial_ends_at.
+
+**restaurants**: Locales individuales. Campos: id, company_id, name, slug, credenciales Toteat (api_token, restaurant_id, local_id, user_id, base_url), parametros operativos (sueldos, arriendo_uf, servicios, otros, horas_op, m2, num_empleados), status.
+
+**users**: Usuarios del sistema. Campos: id, company_id, email, name, role (admin/manager/viewer), token (para acceso URL), status, last_login.
+
+**user_restaurants**: Tabla pivot permisos usuario-local. PK compuesta (user_id, restaurant_id).
+
+**subscriptions**: Suscripciones Mercado Pago. Campos: id, company_id, mp_subscription_id, mp_customer_id, price_usd, quantity (num usuarios), status, periodo actual.
+
+**payments**: Historial de pagos. Campos: id, subscription_id, company_id, amount_usd, amount_clp, mp_payment_id, status, payment_date, invoice_number.
+
+**invitations**: Invitaciones virales. Campos: id, company_id, invited_by, email, role, token, restaurant_ids[], status (pending/accepted/expired), expires_at (7 dias).
+
+**usage_logs**: Tracking de uso. Campos: id, user_id, restaurant_id, action (login/dashboard_view/kpi_view/chat_query), timestamp, metadata JSONB.
+
+### Flujo de Autenticacion (futuro — reemplaza Secrets)
+
+```
+1. Usuario accede con token en URL: ?token=xxx
+2. Dashboard consulta Supabase: SELECT * FROM users WHERE token = 'xxx' AND status = 'active'
+3. Si existe → obtener company_id y verificar company.status != 'cancelled'
+4. Si trial → verificar trial_ends_at > now()
+5. Obtener locales: SELECT r.* FROM restaurants r JOIN user_restaurants ur ON r.id = ur.restaurant_id WHERE ur.user_id = user.id
+6. Crear ToteatAPI clients con las credenciales de cada local
+7. Registrar login en usage_logs
+```
+
+### Panel de Administracion (app Streamlit separada)
+
+Ubicacion futura: `admin/app.py` — desplegado en URL independiente.
+
+Funcionalidades:
+- CRUD empresas, locales, usuarios
+- Test de credenciales Toteat (valida contra API)
+- Generacion de tokens y links de acceso
+- Invitaciones por email
+- Panel de facturacion (MRR, pagos, morosidad)
+- Dashboard de metricas de uso (DAU/MAU, churn)
+
+---
+
+## 11. Modelo de Negocio
+
+- **Precio**: USD $19/mes por usuario + impuestos
+- **Trial**: 7 dias gratis sin tarjeta
+- **Cobro**: Mercado Pago suscripcion recurrente
+- **Escalamiento**: Cada invitacion viral = +$19/mes automatico
+- **Restriccion post-trial**: acceso read-only si no paga (ve datos pero no chat/export)
