@@ -246,6 +246,109 @@ section[data-testid="stSidebar"] {{
 [data-testid="stVerticalBlockBorderWrapper"] {{
     border-radius: 12px;
 }}
+
+/* ═══ ONBOARDING WIZARD ═══ */
+.wizard-container {{
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px;
+    text-align: center;
+}}
+.wizard-icon {{
+    font-size: 3.5rem;
+    margin-bottom: 12px;
+}}
+.wizard-title {{
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: {TEXT_PRIMARY};
+    margin-bottom: 8px;
+    line-height: 1.3;
+}}
+.wizard-subtitle {{
+    font-size: 0.9rem;
+    color: {TEXT_SECONDARY};
+    margin-bottom: 24px;
+    line-height: 1.5;
+}}
+.wizard-progress {{
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 28px;
+}}
+.wizard-dot {{
+    width: 32px;
+    height: 5px;
+    border-radius: 3px;
+    background: {BORDER};
+    transition: all 0.3s;
+}}
+.wizard-dot.active {{
+    background: {TOTEAT_RED};
+    width: 48px;
+}}
+.wizard-dot.done {{
+    background: {SUCCESS};
+}}
+.wizard-tip {{
+    font-size: 0.78rem;
+    color: {TEXT_SECONDARY};
+    background: {BORDER_LIGHT};
+    padding: 10px 14px;
+    border-radius: 10px;
+    margin-top: 12px;
+    line-height: 1.5;
+    text-align: left;
+}}
+.wizard-result {{
+    background: {BG_CARD};
+    border: 2px solid {SUCCESS};
+    border-radius: 16px;
+    padding: 24px;
+    margin: 16px 0;
+}}
+.wizard-celebration {{
+    font-size: 2.5rem;
+    margin-bottom: 8px;
+}}
+
+/* ═══ MOBILE RESPONSIVE ═══ */
+@media (max-width: 768px) {{
+    .block-container {{
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }}
+    /* Stack gauge columns 2x2 */
+    [data-testid="stHorizontalBlock"] {{
+        flex-wrap: wrap;
+    }}
+    /* Bigger touch targets */
+    .stNumberInput input, .stTextInput input {{
+        font-size: 1.1rem !important;
+        padding: 12px !important;
+        min-height: 48px;
+    }}
+    .stButton > button {{
+        min-height: 48px;
+        font-size: 0.95rem !important;
+    }}
+    /* KPI cards compact */
+    .kpi {{
+        padding: 12px !important;
+    }}
+    .kpi-val {{
+        font-size: 1.3rem !important;
+    }}
+    /* Section headers */
+    .sec {{
+        font-size: 0.85rem;
+    }}
+    /* Hide sidebar on mobile */
+    [data-testid="stSidebar"] {{
+        display: none;
+    }}
+}}
 </style>
 """
 
@@ -1556,6 +1659,187 @@ def _gauge_chart(title, value, suffix, green_range, red_threshold, max_val=100):
     return fig
 
 
+def render_onboarding_wizard(kpi_year, selected_month):
+    """Wizard de onboarding mobile-first para capturar gastos del restaurante."""
+
+    if "onboarding_step" not in st.session_state:
+        st.session_state.onboarding_step = 0
+    if "wiz_sueldos" not in st.session_state:
+        st.session_state.wiz_sueldos = 0
+    if "wiz_arriendo_uf" not in st.session_state:
+        st.session_state.wiz_arriendo_uf = 0.0
+    if "wiz_servicios" not in st.session_state:
+        st.session_state.wiz_servicios = 0
+    if "wiz_otros" not in st.session_state:
+        st.session_state.wiz_otros = 0
+    if "wiz_horas" not in st.session_state:
+        st.session_state.wiz_horas = 12
+    if "wiz_m2" not in st.session_state:
+        st.session_state.wiz_m2 = 100
+    if "wiz_empleados" not in st.session_state:
+        st.session_state.wiz_empleados = 10
+
+    step = st.session_state.onboarding_step
+    total_steps = 4
+
+    def progress_dots(current, total):
+        dots = ""
+        for i in range(1, total + 1):
+            if i < current:
+                dots += '<div class="wizard-dot done"></div>'
+            elif i == current:
+                dots += '<div class="wizard-dot active"></div>'
+            else:
+                dots += '<div class="wizard-dot"></div>'
+        return f'<div class="wizard-progress">{dots}</div>'
+
+    def next_step():
+        st.session_state.onboarding_step += 1
+
+    def prev_step():
+        st.session_state.onboarding_step -= 1
+
+    # ── PASO 0: Bienvenida ──
+    if step == 0:
+        st.markdown(f"""<div class="wizard-container">
+            <div class="wizard-icon">📊</div>
+            <div class="wizard-title">Desbloquea tus indicadores financieros</div>
+            <div class="wizard-subtitle">
+                En <b>2 minutos</b> vamos a configurar los datos de tu local
+                para mostrarte KPIs que te van a volar la cabeza.
+            </div>
+        </div>""", unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("🚀 Comenzar", use_container_width=True, type="primary"):
+                next_step()
+                st.rerun()
+        with c2:
+            if st.button("Saltar por ahora", use_container_width=True):
+                st.session_state.onboarding_step = 99
+                st.rerun()
+        return True
+
+    # ── PASO 1: Sueldos ──
+    elif step == 1:
+        st.markdown(progress_dots(1, total_steps), unsafe_allow_html=True)
+        st.markdown(f"""<div class="wizard-container">
+            <div class="wizard-icon">👨‍🍳</div>
+            <div class="wizard-title">¿Cuanto pagas en sueldos?</div>
+            <div class="wizard-subtitle">Total bruto mensual de todo tu equipo</div>
+        </div>""", unsafe_allow_html=True)
+        st.session_state.wiz_sueldos = st.number_input(
+            "Sueldos mensuales (CLP)", min_value=0, step=100000,
+            value=st.session_state.wiz_sueldos, key="wiz_input_sueldos")
+        st.markdown(f'<div class="wizard-tip">💡 Incluye sueldos brutos, imposiciones, gratificaciones y beneficios de todo el personal.</div>', unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("← Atras", use_container_width=True):
+                prev_step()
+                st.rerun()
+        with c2:
+            if st.button("Siguiente →", use_container_width=True, type="primary"):
+                next_step()
+                st.rerun()
+        return True
+
+    # ── PASO 2: Arriendo ──
+    elif step == 2:
+        st.markdown(progress_dots(2, total_steps), unsafe_allow_html=True)
+        st.markdown(f"""<div class="wizard-container">
+            <div class="wizard-icon">🏠</div>
+            <div class="wizard-title">¿Cuanto pagas de arriendo?</div>
+            <div class="wizard-subtitle">Ingresalo en UF y lo convertimos automaticamente</div>
+        </div>""", unsafe_allow_html=True)
+        st.session_state.wiz_arriendo_uf = st.number_input(
+            "Arriendo mensual (UF)", min_value=0.0, step=1.0, format="%.1f",
+            value=st.session_state.wiz_arriendo_uf, key="wiz_input_arriendo")
+        uf_val = get_uf_value()
+        if st.session_state.wiz_arriendo_uf > 0 and uf_val:
+            clp = st.session_state.wiz_arriendo_uf * uf_val
+            st.markdown(f'<div class="wizard-tip">💰 Equivale a <b>${clp:,.0f} CLP</b> (UF a ${uf_val:,.0f})</div>'.replace(",", "."), unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("← Atras", use_container_width=True, key="wiz_back_2"):
+                prev_step()
+                st.rerun()
+        with c2:
+            if st.button("Siguiente →", use_container_width=True, type="primary", key="wiz_next_2"):
+                next_step()
+                st.rerun()
+        return True
+
+    # ── PASO 3: Servicios + Otros + Parametros ──
+    elif step == 3:
+        st.markdown(progress_dots(3, total_steps), unsafe_allow_html=True)
+        st.markdown(f"""<div class="wizard-container">
+            <div class="wizard-icon">⚡</div>
+            <div class="wizard-title">Otros gastos y datos del local</div>
+        </div>""", unsafe_allow_html=True)
+        st.session_state.wiz_servicios = st.number_input(
+            "Servicios basicos — luz, agua, gas (CLP)", min_value=0, step=50000,
+            value=st.session_state.wiz_servicios, key="wiz_input_servicios")
+        st.session_state.wiz_otros = st.number_input(
+            "Otros gastos — insumos, mantencion, marketing (CLP)", min_value=0, step=50000,
+            value=st.session_state.wiz_otros, key="wiz_input_otros")
+        st.markdown("---")
+        st.session_state.wiz_horas = st.slider(
+            "Horas de operacion por dia", min_value=1, max_value=24,
+            value=st.session_state.wiz_horas, key="wiz_input_horas")
+        gc1, gc2 = st.columns(2)
+        with gc1:
+            st.session_state.wiz_m2 = st.number_input(
+                "Metros cuadrados", min_value=1, step=10,
+                value=st.session_state.wiz_m2, key="wiz_input_m2")
+        with gc2:
+            st.session_state.wiz_empleados = st.number_input(
+                "Num. empleados", min_value=1, step=1,
+                value=st.session_state.wiz_empleados, key="wiz_input_empleados")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("← Atras", use_container_width=True, key="wiz_back_3"):
+                prev_step()
+                st.rerun()
+        with c2:
+            if st.button("Finalizar ✨", use_container_width=True, type="primary", key="wiz_next_3"):
+                # Guardar todo
+                month_expenses = {
+                    "sueldos": st.session_state.wiz_sueldos,
+                    "arriendo_uf": st.session_state.wiz_arriendo_uf,
+                    "servicios": st.session_state.wiz_servicios,
+                    "otros": st.session_state.wiz_otros,
+                }
+                _save_month_expenses(kpi_year, selected_month, month_expenses)
+                defaults = {
+                    "horas_op": st.session_state.wiz_horas,
+                    "m2": st.session_state.wiz_m2,
+                    "num_empleados": st.session_state.wiz_empleados,
+                }
+                _save_restaurant_defaults(defaults)
+                next_step()
+                st.rerun()
+        return True
+
+    # ── PASO 4: Resultado ──
+    elif step == 4:
+        st.markdown(progress_dots(4, total_steps), unsafe_allow_html=True)
+        st.markdown(f"""<div class="wizard-container">
+            <div class="wizard-celebration">🎉</div>
+            <div class="wizard-title">¡Todo listo!</div>
+            <div class="wizard-subtitle">
+                Ya configuraste tu local. Ahora vas a ver tus indicadores financieros
+                calculados con datos reales.
+            </div>
+        </div>""", unsafe_allow_html=True)
+        st.balloons()
+        if st.button("📊 Ver mis KPIs", use_container_width=True, type="primary", key="wiz_finish"):
+            st.session_state.onboarding_step = 99
+            st.rerun()
+        return True
+
+    return False
+
+
 def render_kpis(client=None, local_key="default", local_name=None):
     client = client or st.session_state.toteat_client
     if not client:
@@ -1602,49 +1886,62 @@ def render_kpis(client=None, local_key="default", local_name=None):
     # ══════════════════════════════════════════
     # SECCION 1: INGRESO DE GASTOS MENSUALES
     # ══════════════════════════════════════════
-    sec("💸", "Gastos y Parametros del Restaurante")
 
     uf_val = get_uf_value()
-    uf_display = f"${uf_val:,.0f} CLP".replace(",", ".") if uf_val else "No disponible"
 
     # Cargar parametros fijos y gastos del mes seleccionado
     defaults = _load_restaurant_defaults()
     month_expenses = _load_month_expenses(kpi_year, selected_month)
 
-    st.markdown(f"""<div style="font-size:0.8rem;color:{TEXT_SECONDARY};margin-bottom:8px;">
-        Valor UF hoy: <b>{uf_display}</b> — Los datos se guardan automaticamente y persisten entre sesiones.
-    </div>""", unsafe_allow_html=True)
+    # Mostrar wizard si no hay gastos cargados para este mes
+    onboarding_step = st.session_state.get("onboarding_step", 0)
+    if not month_expenses and onboarding_step < 5 and onboarding_step != 99:
+        if render_onboarding_wizard(kpi_year, selected_month):
+            return
+        # Recargar despues del wizard
+        month_expenses = _load_month_expenses(kpi_year, selected_month)
+        defaults = _load_restaurant_defaults()
 
+    # Gastos en expander colapsado (ya no ocupa pantalla completa)
+    with st.expander("💸 Gastos y Parametros del Restaurante", expanded=not bool(month_expenses)):
+        uf_display = f"${uf_val:,.0f} CLP".replace(",", ".") if uf_val else "No disponible"
+        st.markdown(f"""<div style="font-size:0.8rem;color:{TEXT_SECONDARY};margin-bottom:8px;">
+            Valor UF hoy: <b>{uf_display}</b> — Se guardan automaticamente.
+        </div>""", unsafe_allow_html=True)
+
+        gc1, gc2 = st.columns(2)
+        with gc1:
+            sueldos = st.number_input(f"Sueldos {kpi_month} (CLP)", min_value=0, step=100000,
+                                      value=month_expenses.get("sueldos", 0), key="input_sueldos")
+            arriendo_uf = st.number_input(f"Arriendo {kpi_month} (UF)", min_value=0.0, step=1.0, format="%.1f",
+                                          value=float(month_expenses.get("arriendo_uf", 0.0)), key="input_arriendo")
+            arriendo_clp = arriendo_uf * uf_val if uf_val else 0
+            if arriendo_uf > 0 and uf_val:
+                st.caption(f"= {fmt(arriendo_clp)} CLP")
+        with gc2:
+            servicios = st.number_input(f"Servicios {kpi_month} (CLP)", min_value=0, step=50000,
+                                        value=month_expenses.get("servicios", 0), key="input_servicios")
+            otros = st.number_input(f"Otros gastos {kpi_month} (CLP)", min_value=0, step=50000,
+                                    value=month_expenses.get("otros", 0), key="input_otros")
+
+        gc5, gc6, gc7 = st.columns(3)
+        with gc5:
+            horas_op = st.number_input("Horas operacion/dia", min_value=1, max_value=24, step=1,
+                                       value=defaults.get("horas_op", 12), key="input_horas")
+        with gc6:
+            m2 = st.number_input("Metros cuadrados", min_value=1, step=10,
+                                 value=defaults.get("m2", 100), key="input_m2")
+        with gc7:
+            num_empleados = st.number_input("Num. empleados", min_value=1, step=1,
+                                            value=defaults.get("num_empleados", 10), key="input_empleados")
+
+    # Variables sin expander
     if not month_expenses:
-        st.warning(f"Ingresa los gastos de {kpi_month} {kpi_year} para calcular KPIs financieros precisos")
-
-    gc1, gc2, gc3, gc4 = st.columns(4)
-    with gc1:
-        sueldos = st.number_input(f"Sueldos {kpi_month} (CLP)", min_value=0, step=100000,
-                                  value=month_expenses.get("sueldos", 0), key="input_sueldos")
-    with gc2:
-        arriendo_uf = st.number_input(f"Arriendo {kpi_month} (UF)", min_value=0.0, step=1.0, format="%.1f",
-                                      value=float(month_expenses.get("arriendo_uf", 0.0)), key="input_arriendo")
+        sueldos = month_expenses.get("sueldos", 0)
+        arriendo_uf = float(month_expenses.get("arriendo_uf", 0.0))
         arriendo_clp = arriendo_uf * uf_val if uf_val else 0
-        if arriendo_uf > 0 and uf_val:
-            st.caption(f"= {fmt(arriendo_clp)} CLP")
-    with gc3:
-        servicios = st.number_input(f"Servicios {kpi_month} (CLP)", min_value=0, step=50000,
-                                    value=month_expenses.get("servicios", 0), key="input_servicios")
-    with gc4:
-        otros = st.number_input(f"Otros gastos {kpi_month} (CLP)", min_value=0, step=50000,
-                                value=month_expenses.get("otros", 0), key="input_otros")
-
-    gc5, gc6, gc7, _ = st.columns([1, 1, 1, 1])
-    with gc5:
-        horas_op = st.number_input("Horas operacion/dia", min_value=1, max_value=24, step=1,
-                                   value=defaults.get("horas_op", 12), key="input_horas")
-    with gc6:
-        m2 = st.number_input("Metros cuadrados", min_value=1, step=10,
-                             value=defaults.get("m2", 100), key="input_m2")
-    with gc7:
-        num_empleados = st.number_input("Num. empleados", min_value=1, step=1,
-                                        value=defaults.get("num_empleados", 10), key="input_empleados")
+        servicios = month_expenses.get("servicios", 0)
+        otros = month_expenses.get("otros", 0)
 
     # Guardar automaticamente gastos del mes si cambiaron
     new_month_expenses = {
