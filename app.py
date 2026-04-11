@@ -2122,10 +2122,8 @@ def render_kpis(client=None, local_key="default", local_name=None):
                 text=[fmt(abs(v)) for v in cat_values],
                 textfont=dict(size=10, color=TEXT_SECONDARY),
             ))
-            fig.update_layout(
-                title="Cascada de Resultado Operacional", height=300, **PLOTLY_LAYOUT,
-                yaxis=dict(tickformat=",.0f", tickprefix="$"),
-            )
+            fig.update_layout(title="Cascada de Resultado Operacional", height=300, **PLOTLY_LAYOUT)
+            fig.update_yaxes(tickformat=",.0f", tickprefix="$")
             st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
     # ══════════════════════════════════════════
@@ -2866,10 +2864,8 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
                 text=[fmt(abs(v)) for v in cat_values],
                 textfont=dict(size=10, color=TEXT_SECONDARY),
             ))
-            fig.update_layout(
-                title="Cascada de Resultado (Red)", height=300, **PLOTLY_LAYOUT,
-                yaxis=dict(tickformat=",.0f", tickprefix="$"),
-            )
+            fig.update_layout(title="Cascada de Resultado (Red)", height=300, **PLOTLY_LAYOUT)
+            fig.update_yaxes(tickformat=",.0f", tickprefix="$")
             st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
     # ══════════════════════════════════════════
