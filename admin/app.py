@@ -207,10 +207,27 @@ CUSTOM_CSS = f"""
     padding: 6px 20px;
     font-size: 0.82rem;
     transition: all 0.2s;
+    white-space: nowrap;
 }}
 .stButton > button:hover {{
     background: #e6372c;
     box-shadow: 0 2px 8px {TOTEAT_RED}30;
+}}
+
+/* Company table header */
+.company-table-header {{
+    display: grid;
+    grid-template-columns: 2.5fr 1.5fr 2.5fr 1fr 1fr 2.2fr;
+    gap: 8px;
+    padding: 10px 16px;
+    background: {TEXT_PRIMARY};
+    color: white;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-radius: 8px;
+    margin-bottom: 4px;
 }}
 
 /* Dataframes */
@@ -466,9 +483,15 @@ with tab_empresas:
         filtered = [c for c in filtered if (c.get("status") or "").lower() == filter_status]
 
     if filtered:
+        # Table header
+        st.markdown("""<div class="company-table-header">
+            <span>Empresa</span><span>RUT</span><span>Email</span>
+            <span>Plan</span><span>Estado</span><span>Acciones</span>
+        </div>""", unsafe_allow_html=True)
+
         for c in filtered:
             with st.container():
-                cols = st.columns([3, 2, 2, 1.5, 1.5, 2])
+                cols = st.columns([2.5, 1.5, 2.5, 1, 1, 1.2, 1])
                 with cols[0]:
                     st.markdown(f"**{c.get('name', 'N/A')}**")
                 with cols[1]:
@@ -479,30 +502,29 @@ with tab_empresas:
                     st.caption(c.get("plan", "N/A"))
                 with cols[4]:
                     st.markdown(status_badge(c.get("status")), unsafe_allow_html=True)
+                cid = c.get("id", "")
+                current_status = (c.get("status") or "").lower()
                 with cols[5]:
-                    bc1, bc2 = st.columns(2)
-                    cid = c.get("id", "")
-                    current_status = (c.get("status") or "").lower()
-                    with bc1:
-                        if current_status != "suspended":
-                            if st.button("Suspender", key=f"sus_{cid}", type="secondary"):
-                                try:
-                                    sb.table("companies").update({"status": "suspended"}).eq("id", cid).execute()
-                                    st.toast("Empresa suspendida", icon="🚫")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Error: {e}")
-                        else:
-                            if st.button("Activar", key=f"act_{cid}", type="secondary"):
-                                try:
-                                    sb.table("companies").update({"status": "active"}).eq("id", cid).execute()
-                                    st.toast("Empresa activada", icon="✅")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Error: {e}")
-                    with bc2:
-                        if st.button("Editar", key=f"edit_{cid}", type="secondary"):
-                            st.session_state[f"editing_company_{cid}"] = True
+                    if current_status != "suspended":
+                        if st.button("🚫 Suspender", key=f"sus_{cid}", use_container_width=True):
+                            try:
+                                sb.table("companies").update({"status": "suspended"}).eq("id", cid).execute()
+                                st.toast("Empresa suspendida", icon="🚫")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error: {e}")
+                    else:
+                        if st.button("✅ Activar", key=f"act_{cid}", use_container_width=True):
+                            try:
+                                sb.table("companies").update({"status": "active"}).eq("id", cid).execute()
+                                st.toast("Empresa activada", icon="✅")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error: {e}")
+                with cols[6]:
+                    if st.button("✏️ Editar", key=f"edit_{cid}", use_container_width=True):
+                        st.session_state[f"editing_company_{cid}"] = True
+                st.markdown("<hr style='margin:0;border:none;border-top:1px solid #e5e7eb'>", unsafe_allow_html=True)
 
                 # Formulario de edicion inline
                 if st.session_state.get(f"editing_company_{cid}", False):
