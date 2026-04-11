@@ -437,6 +437,14 @@ def sec(icon, text):
     st.markdown(f'<div class="sec">{icon} {text}</div>', unsafe_allow_html=True)
 
 
+def _safe_error(e):
+    """Sanitize error message to hide API tokens."""
+    msg = str(e)
+    if "xapitoken=" in msg:
+        msg = msg.split("?")[0] + " (detalles ocultos por seguridad)"
+    return msg
+
+
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "restaurant_config.json")
 HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kpi_history.json")
 
@@ -1140,7 +1148,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                     st.dataframe(df_pay, use_container_width=True, hide_index=True)
 
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"Error: {_safe_error(e)}")
 
     # ══════════════════════════════════════════
     # PRECARGA PARALELA (shift, tables, fiscal, products, collection, inventory, accounting)
@@ -1289,7 +1297,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
         else:
             st.info("Sin documentos fiscales en este periodo.")
     except Exception as e:
-        st.error(f"Error al cargar documentos fiscales: {e}")
+        st.error(f"Error al cargar documentos fiscales: {_safe_error(e)}")
 
     # ── Menu ──
     sec("📋", "Menu del Restaurante")
@@ -1308,7 +1316,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                                 for p in items]
                         st.dataframe(rows, use_container_width=True, hide_index=True)
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Error: {_safe_error(e)}")
 
     # ══════════════════════════════════════════
     # RECAUDACION / CAJA
@@ -1407,7 +1415,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                 st.dataframe(cajas_info, use_container_width=True, hide_index=True)
 
     except Exception as e:
-        st.error(f"Error al cargar recaudacion: {e}")
+        st.error(f"Error al cargar recaudacion: {_safe_error(e)}")
 
     # ══════════════════════════════════════════
     # INVENTARIO
@@ -1491,7 +1499,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                     st.dataframe(rows_inv, use_container_width=True, hide_index=True)
 
     except Exception as e:
-        st.error(f"Error al cargar inventario: {e}")
+        st.error(f"Error al cargar inventario: {_safe_error(e)}")
 
     # ══════════════════════════════════════════
     # MOVIMIENTOS CONTABLES
@@ -1577,7 +1585,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                     st.dataframe(rows_acc, use_container_width=True, hide_index=True)
 
     except Exception as e:
-        st.error(f"Error al cargar movimientos contables: {e}")
+        st.error(f"Error al cargar movimientos contables: {_safe_error(e)}")
 
 
 # ──────────────────────────────────────────────
@@ -1647,7 +1655,7 @@ def render_chat(client=None, local_key="default", local_name=None):
                     st.markdown(answer)
                     st.session_state[msg_key].append({"role": "assistant", "content": answer})
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Error: {_safe_error(e)}")
 
 
 # ──────────────────────────────────────────────
@@ -1903,7 +1911,7 @@ def render_kpis(client=None, local_key="default", local_name=None):
             data = raw.get("data", [])
             s = process_sales(data)
         except Exception as e:
-            st.error(f"Error al cargar ventas: {e}")
+            st.error(f"Error al cargar ventas: {_safe_error(e)}")
             return
 
         if not s:
@@ -2563,7 +2571,7 @@ def render_consolidated_dashboard(clients, locals_config, allowed_locals):
                     st.caption(f"{local_name}: No se pudo obtener estado en vivo")
 
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"Error: {_safe_error(e)}")
 
 
 def render_consolidated_kpis(clients, locals_config, allowed_locals):
@@ -2698,7 +2706,7 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
 
             s = process_sales(combined_data)
         except Exception as e:
-            st.error(f"Error al cargar ventas: {e}")
+            st.error(f"Error al cargar ventas: {_safe_error(e)}")
             return
 
         if not s:
@@ -3037,7 +3045,7 @@ Responde siempre en espanol.
                     st.markdown(answer)
                     st.session_state.messages_red.append({"role": "assistant", "content": answer})
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Error: {_safe_error(e)}")
 
 
 # ──────────────────────────────────────────────

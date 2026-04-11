@@ -5,8 +5,8 @@ import requests
 class ToteatAPI:
     """Cliente para la API de Toteat. Thread-safe (sin Session compartida)."""
 
-    MAX_RETRIES = 2
-    RETRY_BACKOFF = [2, 5]
+    MAX_RETRIES = 3
+    RETRY_BACKOFF = [3, 8, 15]
 
     def __init__(self, api_token: str, restaurant_id: str, local_id: str, user_id: str,
                  base_url: str = "https://api.toteat.com/mw/or/1.0/"):
