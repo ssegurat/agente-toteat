@@ -958,10 +958,10 @@ with tab_billing:
             pay_df = pd.DataFrame(payments)
             pay_df["created_at"] = pd.to_datetime(pay_df["created_at"], errors="coerce")
             pay_df["amount_usd"] = pd.to_numeric(pay_df["amount_usd"], errors="coerce").fillna(0)
-            pay_df = pay_df.dropna(subset=["created_at"])
+            pay_df = pay_df.dropna(subset=["timestamp"])
 
             if not pay_df.empty:
-                monthly = pay_df.set_index("created_at").resample("MS")["amount_usd"].sum().reset_index()
+                monthly = pay_df.set_index("timestamp").resample("MS")["amount_usd"].sum().reset_index()
                 monthly.columns = ["Mes", "Revenue"]
 
                 fig = go.Figure()
@@ -1001,14 +1001,14 @@ with tab_metrics:
     thirty_days_ago = (date.today() - timedelta(days=30)).isoformat()
 
     recent_logs = safe_query(
-        lambda: sb.table("usage_logs").select("*").gte("created_at", thirty_days_ago).order("created_at", desc=True).execute()
+        lambda: sb.table("usage_logs").select("*").gte("timestamp", thirty_days_ago).order("timestamp", desc=True).execute()
     )
 
     all_users_count = safe_query(lambda: sb.table("users").select("id", count="exact").eq("status", "active").execute())
     all_restaurants_count = safe_query(lambda: sb.table("restaurants").select("id", count="exact").eq("status", "active").execute())
 
     # Calcular metricas
-    week_logs = [l for l in recent_logs if l.get("created_at", "") >= seven_days_ago]
+    week_logs = [l for l in recent_logs if l.get("timestamp", "") >= seven_days_ago]
     unique_users_7d = len(set(l.get("user_id") for l in week_logs if l.get("user_id")))
     chat_queries = sum(1 for l in recent_logs if (l.get("action") or "").lower() in ("chat", "query", "message"))
     total_active_users = len(all_users_count) if isinstance(all_users_count, list) else 0
@@ -1031,11 +1031,11 @@ with tab_metrics:
     if login_logs:
         try:
             log_df = pd.DataFrame(login_logs)
-            log_df["created_at"] = pd.to_datetime(log_df["created_at"], errors="coerce")
-            log_df = log_df.dropna(subset=["created_at"])
+            log_df["timestamp"] = pd.to_datetime(log_df["timestamp"], errors="coerce")
+            log_df = log_df.dropna(subset=["timestamp"])
 
             if not log_df.empty:
-                daily = log_df.set_index("created_at").resample("D").size().reset_index(name="Logins")
+                daily = log_df.set_index("timestamp").resample("D").size().reset_index(name="Logins")
                 daily.columns = ["Fecha", "Logins"]
 
                 fig_logins = go.Figure()
