@@ -7,12 +7,13 @@
 CREATE TABLE IF NOT EXISTS companies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
-    rut TEXT,
+    country TEXT,
+    tax_id TEXT,
     contact_email TEXT,
     contact_phone TEXT,
     plan TEXT DEFAULT 'standard',
-    status TEXT DEFAULT 'trial',
-    trial_ends_at TIMESTAMPTZ DEFAULT (now() + interval '7 days'),
+    status TEXT DEFAULT 'created',
+    trial_ends_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now(),
     notes TEXT
 );

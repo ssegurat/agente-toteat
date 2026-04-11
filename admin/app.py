@@ -123,6 +123,16 @@ CUSTOM_CSS = f"""
     font-weight: 800;
     border: 1px solid {DANGER}30;
 }}
+.badge-created {{
+    display: inline-block;
+    background: #f0f4ff;
+    color: #6366f1;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    border: 1px solid #6366f130;
+}}
 
 /* Section header */
 .sec {{
@@ -305,6 +315,11 @@ def section_header(icon, title):
     st.markdown(f'<div class="sec">{icon} {title}</div>', unsafe_allow_html=True)
 
 
+COUNTRY_OPTIONS = ["CL", "AR", "PE", "CO", "CR", "MX"]
+COUNTRY_LABELS = {"CL": "Chile", "AR": "Argentina", "PE": "Peru", "CO": "Colombia", "CR": "Costa Rica", "MX": "Mexico"}
+COUNTRY_CURRENCY = {"CL": "CLP", "AR": "ARS", "PE": "PEN", "CO": "COP", "CR": "CRC", "MX": "MXN"}
+
+
 def status_badge(status):
     s = (status or "").lower()
     if s == "active":
@@ -313,6 +328,8 @@ def status_badge(status):
         return '<span class="badge-trial">Trial</span>'
     elif s in ("suspended", "inactive"):
         return '<span class="badge-suspended">Suspendido</span>'
+    elif s == "created":
+        return '<span class="badge-created">Creada</span>'
     return f'<span style="color:{TEXT_SECONDARY}">{status or "N/A"}</span>'
 
 
@@ -438,7 +455,7 @@ with tab_empresas:
     with fc1:
         search_company = st.text_input("🔍 Buscar empresa", placeholder="Nombre o email...", key="search_co")
     with fc2:
-        filter_status = st.selectbox("Estado", ["Todos", "active", "trial", "suspended"], key="filter_co_status")
+        filter_status = st.selectbox("Estado", ["Todos", "created", "active", "trial", "suspended"], key="filter_co_status")
 
     # Nueva empresa
     with st.expander("➕ Nueva Empresa", expanded=False):
@@ -446,7 +463,8 @@ with tab_empresas:
             nc1, nc2 = st.columns(2)
             with nc1:
                 new_name = st.text_input("Nombre *")
-                new_rut = st.text_input("RUT")
+                new_country = st.selectbox("Pais *", COUNTRY_OPTIONS, format_func=lambda x: COUNTRY_LABELS.get(x, x))
+                new_tax_id = st.text_input("ID Fiscal (RUT/CUIT/RUC/NIT/RFC)")
                 new_email = st.text_input("Email de contacto *")
             with nc2:
                 new_phone = st.text_input("Telefono")
@@ -460,7 +478,8 @@ with tab_empresas:
                     try:
                         sb.table("companies").insert({
                             "name": new_name,
-                            "rut": new_rut or None,
+                            "country": new_country,
+                            "tax_id": new_tax_id or None,
                             "contact_email": new_email,
                             "contact_phone": new_phone or None,
                             "plan": new_plan,
@@ -471,6 +490,76 @@ with tab_empresas:
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al crear empresa: {e}")
+
+    # Importar empresas desde Excel
+    with st.expander("📥 Importar Empresas desde Excel", expanded=False):
+        imp_c1, imp_c2 = st.columns([2, 1])
+        with imp_c2:
+            # Boton descargar plantilla
+            try:
+                with open("admin/templates/plantilla_empresas.xlsx", "rb") as f:
+                    st.download_button("📄 Descargar Plantilla", f, file_name="plantilla_empresas.xlsx",
+                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                       use_container_width=True)
+            except FileNotFoundError:
+                st.caption("Plantilla no disponible")
+        with imp_c1:
+            uploaded_companies = st.file_uploader("Sube el Excel con empresas", type=["xlsx"], key="upload_companies")
+
+        if uploaded_companies:
+            try:
+                import openpyxl
+                df_import = pd.read_excel(uploaded_companies, engine="openpyxl")
+                required_cols = {"Nombre", "Pais", "Email"}
+                if not required_cols.issubset(set(df_import.columns)):
+                    st.error(f"Faltan columnas requeridas: {required_cols - set(df_import.columns)}")
+                else:
+                    st.dataframe(df_import.head(10), use_container_width=True, hide_index=True)
+                    st.caption(f"{len(df_import)} empresas encontradas en el archivo")
+
+                    if st.button("✅ Confirmar Importacion", key="confirm_import_companies", use_container_width=True):
+                        imported = 0
+                        errors = []
+                        for idx, row in df_import.iterrows():
+                            name = str(row.get("Nombre", "")).strip()
+                            country = str(row.get("Pais", "")).strip().upper()
+                            email = str(row.get("Email", "")).strip()
+                            tax_id = str(row.get("ID Fiscal", "")).strip() if pd.notna(row.get("ID Fiscal")) else None
+                            phone = str(row.get("Telefono", "")).strip() if pd.notna(row.get("Telefono")) else None
+                            plan = str(row.get("Plan", "trial")).strip().lower()
+                            notes = str(row.get("Notas", "")).strip() if pd.notna(row.get("Notas")) else None
+
+                            if not name or not email:
+                                errors.append(f"Fila {idx + 2}: Nombre y Email son requeridos")
+                                continue
+                            if country not in COUNTRY_OPTIONS:
+                                errors.append(f"Fila {idx + 2}: Pais '{country}' no valido. Usar: {', '.join(COUNTRY_OPTIONS)}")
+                                continue
+                            try:
+                                sb.table("companies").insert({
+                                    "name": name,
+                                    "country": country,
+                                    "tax_id": tax_id,
+                                    "contact_email": email,
+                                    "contact_phone": phone,
+                                    "plan": plan if plan in ("trial", "starter", "professional", "enterprise") else "trial",
+                                    "status": "created",
+                                    "notes": notes,
+                                }).execute()
+                                imported += 1
+                            except Exception as e:
+                                errors.append(f"Fila {idx + 2}: {e}")
+
+                        if imported:
+                            st.success(f"✅ {imported} empresas importadas correctamente")
+                        if errors:
+                            st.error(f"⚠️ {len(errors)} errores:")
+                            for err in errors[:20]:
+                                st.caption(err)
+                        if imported:
+                            st.rerun()
+            except Exception as e:
+                st.error(f"Error al leer archivo: {e}")
 
     # Tabla de empresas
     section_header("📋", "Listado de Empresas")
@@ -485,26 +574,28 @@ with tab_empresas:
     if filtered:
         # Table header
         st.markdown("""<div class="company-table-header">
-            <span>Empresa</span><span>RUT</span><span>Email</span>
+            <span>Empresa</span><span>Pais</span><span>ID Fiscal</span><span>Email</span>
             <span>Plan</span><span>Estado</span><span>Acciones</span>
         </div>""", unsafe_allow_html=True)
 
         for c in filtered:
             with st.container():
-                cols = st.columns([2.5, 1.5, 2.5, 1, 1, 1.2, 1])
+                cols = st.columns([2.2, 0.7, 1.3, 2.2, 0.8, 0.8, 1.1, 0.9])
                 with cols[0]:
                     st.markdown(f"**{c.get('name', 'N/A')}**")
                 with cols[1]:
-                    st.caption(c.get("rut", "Sin RUT"))
+                    st.caption(c.get("country", ""))
                 with cols[2]:
-                    st.caption(c.get("contact_email", ""))
+                    st.caption(c.get("tax_id", "—"))
                 with cols[3]:
-                    st.caption(c.get("plan", "N/A"))
+                    st.caption(c.get("contact_email", ""))
                 with cols[4]:
+                    st.caption(c.get("plan", "N/A"))
+                with cols[5]:
                     st.markdown(status_badge(c.get("status")), unsafe_allow_html=True)
                 cid = c.get("id", "")
                 current_status = (c.get("status") or "").lower()
-                with cols[5]:
+                with cols[6]:
                     if current_status != "suspended":
                         if st.button("🚫 Suspender", key=f"sus_{cid}", use_container_width=True):
                             try:
@@ -521,7 +612,7 @@ with tab_empresas:
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Error: {e}")
-                with cols[6]:
+                with cols[7]:
                     if st.button("✏️ Editar", key=f"edit_{cid}", use_container_width=True):
                         st.session_state[f"editing_company_{cid}"] = True
                 st.markdown("<hr style='margin:0;border:none;border-top:1px solid #e5e7eb'>", unsafe_allow_html=True)
@@ -532,7 +623,11 @@ with tab_empresas:
                         ec1, ec2 = st.columns(2)
                         with ec1:
                             edit_name = st.text_input("Nombre", value=c.get("name", ""), key=f"en_{cid}")
-                            edit_rut = st.text_input("RUT", value=c.get("rut", "") or "", key=f"er_{cid}")
+                            current_country = c.get("country", "CL") or "CL"
+                            edit_country = st.selectbox("Pais", COUNTRY_OPTIONS,
+                                                        index=COUNTRY_OPTIONS.index(current_country) if current_country in COUNTRY_OPTIONS else 0,
+                                                        format_func=lambda x: COUNTRY_LABELS.get(x, x), key=f"eco_{cid}")
+                            edit_tax_id = st.text_input("ID Fiscal", value=c.get("tax_id", "") or "", key=f"er_{cid}")
                             edit_email = st.text_input("Email", value=c.get("contact_email", ""), key=f"ee_{cid}")
                         with ec2:
                             edit_phone = st.text_input("Telefono", value=c.get("contact_phone", "") or "", key=f"ep_{cid}")
@@ -549,7 +644,8 @@ with tab_empresas:
                             try:
                                 sb.table("companies").update({
                                     "name": edit_name,
-                                    "rut": edit_rut or None,
+                                    "country": edit_country,
+                                    "tax_id": edit_tax_id or None,
                                     "contact_email": edit_email,
                                     "contact_phone": edit_phone or None,
                                     "plan": edit_plan,
@@ -647,7 +743,7 @@ with tab_restaurants:
                                 "arriendo_uf": rest_arriendo,
                                 "servicios": rest_servicios,
                                 "otros": rest_otros,
-                                "horas_operacion": rest_horas,
+                                "horas_op": rest_horas,
                                 "m2": rest_m2,
                                 "num_empleados": rest_empleados,
                                 "status": "active",
@@ -656,6 +752,104 @@ with tab_restaurants:
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al crear local: {e}")
+
+        # Importar restaurantes desde Excel
+        with st.expander("📥 Importar Locales desde Excel", expanded=False):
+            imp_r1, imp_r2 = st.columns([2, 1])
+            with imp_r2:
+                try:
+                    with open("admin/templates/plantilla_restaurantes.xlsx", "rb") as f:
+                        st.download_button("📄 Descargar Plantilla", f, file_name="plantilla_restaurantes.xlsx",
+                                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                           use_container_width=True, key="dl_rest_template")
+                except FileNotFoundError:
+                    st.caption("Plantilla no disponible")
+            with imp_r1:
+                uploaded_rests = st.file_uploader("Sube el Excel con locales", type=["xlsx"], key="upload_restaurants")
+
+            if uploaded_rests:
+                try:
+                    import openpyxl
+                    df_rest_import = pd.read_excel(uploaded_rests, engine="openpyxl")
+                    required_cols = {"Nombre Empresa", "Nombre Local"}
+                    if not required_cols.issubset(set(df_rest_import.columns)):
+                        st.error(f"Faltan columnas requeridas: {required_cols - set(df_rest_import.columns)}")
+                    else:
+                        st.dataframe(df_rest_import.head(10), use_container_width=True, hide_index=True)
+                        st.caption(f"{len(df_rest_import)} locales encontrados en el archivo")
+
+                        # Build company name -> id map
+                        all_companies = safe_query(lambda: sb.table("companies").select("id, name").execute())
+                        co_map = {c["name"].strip().lower(): c["id"] for c in all_companies}
+
+                        if st.button("✅ Confirmar Importacion", key="confirm_import_rests", use_container_width=True):
+                            imported = 0
+                            errors = []
+                            for idx, row in df_rest_import.iterrows():
+                                co_name = str(row.get("Nombre Empresa", "")).strip()
+                                local_name = str(row.get("Nombre Local", "")).strip()
+
+                                if not co_name or not local_name:
+                                    errors.append(f"Fila {idx + 2}: Nombre Empresa y Nombre Local son requeridos")
+                                    continue
+
+                                co_id = co_map.get(co_name.lower())
+                                if not co_id:
+                                    errors.append(f"Fila {idx + 2}: Empresa '{co_name}' no encontrada")
+                                    continue
+
+                                slug = str(row.get("Slug", "")).strip() if pd.notna(row.get("Slug")) else local_name.lower().replace(" ", "-")
+                                api_token = str(row.get("API Token", "")).strip() if pd.notna(row.get("API Token")) else None
+                                rest_id = str(row.get("Restaurant ID", "")).strip() if pd.notna(row.get("Restaurant ID")) else None
+                                local_id = str(row.get("Local ID", "1")).strip() if pd.notna(row.get("Local ID")) else "1"
+                                user_id = str(row.get("User ID", "")).strip() if pd.notna(row.get("User ID")) else None
+                                base_url = str(row.get("Base URL", "")).strip() if pd.notna(row.get("Base URL")) else "https://api.toteat.com/mw/or/1.0/"
+
+                                def safe_int(val, default=0):
+                                    try:
+                                        return int(float(val)) if pd.notna(val) else default
+                                    except (ValueError, TypeError):
+                                        return default
+
+                                def safe_float(val, default=0.0):
+                                    try:
+                                        return float(val) if pd.notna(val) else default
+                                    except (ValueError, TypeError):
+                                        return default
+
+                                try:
+                                    sb.table("restaurants").insert({
+                                        "company_id": co_id,
+                                        "name": local_name,
+                                        "slug": slug,
+                                        "api_token": api_token,
+                                        "restaurant_id": rest_id,
+                                        "local_id": local_id,
+                                        "user_id": user_id,
+                                        "base_url": base_url,
+                                        "sueldos": safe_int(row.get("Sueldos")),
+                                        "arriendo_uf": safe_float(row.get("Arriendo UF")),
+                                        "servicios": safe_int(row.get("Servicios")),
+                                        "otros": safe_int(row.get("Otros")),
+                                        "horas_op": safe_int(row.get("Horas Op"), 12),
+                                        "m2": safe_int(row.get("M2")),
+                                        "num_empleados": safe_int(row.get("Num Empleados")),
+                                        "status": "active",
+                                    }).execute()
+                                    imported += 1
+                                except Exception as e:
+                                    errors.append(f"Fila {idx + 2}: {e}")
+
+                            if imported:
+                                st.success(f"✅ {imported} locales importados correctamente")
+                            if errors:
+                                st.error(f"⚠️ {len(errors)} errores:")
+                                for err in errors[:20]:
+                                    st.caption(err)
+                            if imported:
+                                st.rerun()
+                except Exception as e:
+                    st.error(f"Error al leer archivo: {e}")
 
         # Tabla de restaurantes
         section_header("📋", "Locales")
