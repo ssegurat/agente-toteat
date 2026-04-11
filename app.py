@@ -698,7 +698,7 @@ def parallel_load(tasks: dict):
     """Carga multiple API calls en paralelo. tasks = {key: callable}. Retorna {key: result}."""
     from concurrent.futures import ThreadPoolExecutor, as_completed
     results = {}
-    with ThreadPoolExecutor(max_workers=6) as executor:
+    with ThreadPoolExecutor(max_workers=8) as executor:
         future_to_key = {executor.submit(fn): key for key, fn in tasks.items()}
         for future in as_completed(future_to_key):
             key = future_to_key[future]
@@ -707,6 +707,45 @@ def parallel_load(tasks: dict):
             except Exception:
                 results[key] = None
     return results
+
+
+def _cache_key(prefix, *args):
+    """Genera cache key para session_state."""
+    return f"_cache_{prefix}_{'_'.join(str(a) for a in args)}"
+
+
+def _cached_or_fetch(key, fn, ttl=300):
+    """Cache manual en session_state con TTL. Thread-safe para parallel_load."""
+    import time as _time
+    full_key = f"_pcache_{key}"
+    ts_key = f"_pcache_ts_{key}"
+    now = _time.time()
+    if full_key in st.session_state:
+        if now - st.session_state.get(ts_key, 0) < ttl:
+            return st.session_state[full_key]
+    result = fn()
+    st.session_state[full_key] = result
+    st.session_state[ts_key] = now
+    return result
+
+
+def preload_dashboard_data(client, sf, st2, local_key="default"):
+    """Carga TODOS los datos del dashboard en paralelo usando cache manual."""
+    sf_str, st2_str = sf.isoformat(), st2.isoformat()
+
+    def make_task(key, fn, ttl=300):
+        return lambda: _cached_or_fetch(f"{key}_{local_key}_{sf_str}_{st2_str}", fn, ttl)
+
+    tasks = {
+        "shift": lambda: _cached_or_fetch(f"shift_{local_key}", lambda: cached_get_shift(client, local_key=local_key), 60),
+        "tables": lambda: _cached_or_fetch(f"tables_{local_key}", lambda: cached_get_tables(client, local_key=local_key), 60),
+        "fiscal": make_task("fiscal", lambda: _chunked_api_call(client.get_fiscal_documents, sf_str, st2_str)),
+        "products": lambda: _cached_or_fetch(f"products_{local_key}", lambda: client.get_products(), 3600),
+        "collection": lambda: _cached_or_fetch(f"collection_{local_key}_{sf_str}", lambda: client.get_collection(sf_str), 120),
+        "inventory": make_task("inventory", lambda: client.get_inventory_state(sf_str, st2_str)),
+        "accounting": make_task("accounting", lambda: client.get_accounting_movements(sf_str, st2_str)),
+    }
+    return parallel_load(tasks)
 
 
 # ── Procesamiento de ventas ──
@@ -1111,19 +1150,20 @@ def render_dashboard(client=None, local_key="default", local_name=None):
             st.error(f"Error: {e}")
 
     # ══════════════════════════════════════════
+    # PRECARGA PARALELA (shift, tables, fiscal, products, collection, inventory, accounting)
+    # ══════════════════════════════════════════
+    with st.spinner("Cargando datos del restaurante..."):
+        preload = preload_dashboard_data(client, sf, st2, local_key)
+
+    # ══════════════════════════════════════════
     # ESTADO EN VIVO (Turno + Mesas)
     # ══════════════════════════════════════════
     sec("🏪", "Estado en Vivo")
 
-    shift_data, table_data = {}, []
-    try:
-        shift_data = cached_get_shift(client, local_key=local_key).get("data", {})
-    except Exception:
-        pass
-    try:
-        table_data = cached_get_tables(client, local_key=local_key).get("data", [])
-    except Exception:
-        pass
+    shift_result = preload.get("shift")
+    table_result = preload.get("tables")
+    shift_data = shift_result.get("data", {}) if isinstance(shift_result, dict) else {}
+    table_data = table_result.get("data", []) if isinstance(table_result, dict) else []
 
     total_t = len(table_data)
     avail_t = sum(1 for t in table_data if t.get("available"))
@@ -1171,7 +1211,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
     # ══════════════════════════════════════════
     sec("📄", "Documentos Fiscales")
     try:
-        raw_fiscal = cached_get_fiscal_docs(client, sf.isoformat(), st2.isoformat(), local_key=local_key)
+        raw_fiscal = preload.get("fiscal")
         if isinstance(raw_fiscal, list):
             fiscal_data = raw_fiscal
         elif isinstance(raw_fiscal, dict):
@@ -1261,7 +1301,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
     # ── Menu ──
     sec("📋", "Menu del Restaurante")
     try:
-        products = cached_get_products(client, local_key=local_key)
+        products = preload.get("products") or {}
         data = products.get("data", products)
         if isinstance(data, list):
             for cat in data:
@@ -1294,8 +1334,11 @@ def render_dashboard(client=None, local_key="default", local_name=None):
         raw_coll_sales = cached_get_sales(client, coll_date.isoformat(), coll_date.isoformat(), local_key=local_key)
         coll_sales_data = raw_coll_sales.get("data", [])
 
-        # Obtener info de cajas desde collection API
-        raw_coll = cached_get_collection(client, coll_date.isoformat(), local_key=local_key)
+        # Obtener info de cajas desde collection API (precargado si misma fecha)
+        if coll_date == sf:
+            raw_coll = preload.get("collection") or {}
+        else:
+            raw_coll = cached_get_collection(client, coll_date.isoformat(), local_key=local_key)
         coll_data = raw_coll.get("data", raw_coll) if isinstance(raw_coll, dict) else raw_coll if raw_coll else []
 
         # Extraer medios de pago desde ventas
@@ -1378,7 +1421,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
     # ══════════════════════════════════════════
     sec("📦", "Estado de Inventario")
     try:
-        raw_inv = cached_get_inventory(client, sf.isoformat(), st2.isoformat(), local_key=local_key)
+        raw_inv = preload.get("inventory") or {}
         inv_data = raw_inv.get("data", raw_inv) if isinstance(raw_inv, dict) else raw_inv
 
         if not inv_data:
@@ -1462,7 +1505,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
     # ══════════════════════════════════════════
     sec("📒", "Movimientos Contables")
     try:
-        raw_acc = cached_get_accounting(client, sf.isoformat(), st2.isoformat(), local_key=local_key)
+        raw_acc = preload.get("accounting") or {}
         acc_data = raw_acc.get("data", raw_acc) if isinstance(raw_acc, dict) else raw_acc
 
         if not acc_data:
