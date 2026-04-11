@@ -1111,26 +1111,19 @@ def render_dashboard(client=None, local_key="default", local_name=None):
             st.error(f"Error: {e}")
 
     # ══════════════════════════════════════════
-    # PRECARGA PARALELA de todas las secciones
-    # ══════════════════════════════════════════
-    with st.spinner("Cargando datos del restaurante..."):
-        preload = parallel_load({
-            "shift": lambda: cached_get_shift(client, local_key=local_key),
-            "tables": lambda: cached_get_tables(client, local_key=local_key),
-            "fiscal": lambda: cached_get_fiscal_docs(client, sf.isoformat(), st2.isoformat(), local_key=local_key),
-            "products": lambda: cached_get_products(client, local_key=local_key),
-            "collection": lambda: cached_get_collection(client, sf.isoformat(), local_key=local_key),
-            "inventory": lambda: cached_get_inventory(client, sf.isoformat(), st2.isoformat(), local_key=local_key),
-            "accounting": lambda: cached_get_accounting(client, sf.isoformat(), st2.isoformat(), local_key=local_key),
-        })
-
-    # ══════════════════════════════════════════
     # ESTADO EN VIVO (Turno + Mesas)
     # ══════════════════════════════════════════
     sec("🏪", "Estado en Vivo")
 
-    shift_data = (preload.get("shift") or {}).get("data", {}) if isinstance(preload.get("shift"), dict) else {}
-    table_data = (preload.get("tables") or {}).get("data", []) if isinstance(preload.get("tables"), dict) else []
+    shift_data, table_data = {}, []
+    try:
+        shift_data = cached_get_shift(client, local_key=local_key).get("data", {})
+    except Exception:
+        pass
+    try:
+        table_data = cached_get_tables(client, local_key=local_key).get("data", [])
+    except Exception:
+        pass
 
     total_t = len(table_data)
     avail_t = sum(1 for t in table_data if t.get("available"))
@@ -1178,7 +1171,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
     # ══════════════════════════════════════════
     sec("📄", "Documentos Fiscales")
     try:
-        raw_fiscal = preload.get("fiscal")
+        raw_fiscal = cached_get_fiscal_docs(client, sf.isoformat(), st2.isoformat(), local_key=local_key)
         if isinstance(raw_fiscal, list):
             fiscal_data = raw_fiscal
         elif isinstance(raw_fiscal, dict):
@@ -1268,7 +1261,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
     # ── Menu ──
     sec("📋", "Menu del Restaurante")
     try:
-        products = preload.get("products") or {}
+        products = cached_get_products(client, local_key=local_key)
         data = products.get("data", products)
         if isinstance(data, list):
             for cat in data:
@@ -1301,8 +1294,8 @@ def render_dashboard(client=None, local_key="default", local_name=None):
         raw_coll_sales = cached_get_sales(client, coll_date.isoformat(), coll_date.isoformat(), local_key=local_key)
         coll_sales_data = raw_coll_sales.get("data", [])
 
-        # Obtener info de cajas desde collection API (precargado si es la misma fecha)
-        raw_coll = preload.get("collection") if coll_date == sf else cached_get_collection(client, coll_date.isoformat(), local_key=local_key)
+        # Obtener info de cajas desde collection API
+        raw_coll = cached_get_collection(client, coll_date.isoformat(), local_key=local_key)
         coll_data = raw_coll.get("data", raw_coll) if isinstance(raw_coll, dict) else raw_coll if raw_coll else []
 
         # Extraer medios de pago desde ventas
@@ -1385,7 +1378,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
     # ══════════════════════════════════════════
     sec("📦", "Estado de Inventario")
     try:
-        raw_inv = preload.get("inventory") or {}
+        raw_inv = cached_get_inventory(client, sf.isoformat(), st2.isoformat(), local_key=local_key)
         inv_data = raw_inv.get("data", raw_inv) if isinstance(raw_inv, dict) else raw_inv
 
         if not inv_data:
@@ -1469,7 +1462,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
     # ══════════════════════════════════════════
     sec("📒", "Movimientos Contables")
     try:
-        raw_acc = preload.get("accounting") or {}
+        raw_acc = cached_get_accounting(client, sf.isoformat(), st2.isoformat(), local_key=local_key)
         acc_data = raw_acc.get("data", raw_acc) if isinstance(raw_acc, dict) else raw_acc
 
         if not acc_data:
