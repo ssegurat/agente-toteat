@@ -687,15 +687,16 @@ def cached_get_accounting(_client, date_from: str, date_to: str, local_key: str 
     return _client.get_accounting_movements(date_from, date_to)
 
 @st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=3600, show_spinner=False)
 def get_uf_value():
-    """Obtiene el valor actual de la UF desde mindicador.cl."""
+    """Obtiene el valor actual de la UF desde mindicador.cl (cacheado 1 hora)."""
     import requests
     try:
-        r = requests.get("https://mindicador.cl/api/uf", timeout=10)
+        r = requests.get("https://mindicador.cl/api/uf", timeout=5)
         data = r.json()
         return data["serie"][0]["valor"]
     except Exception:
-        return None
+        return 39855  # Fallback aproximado
 
 
 # ── Procesamiento de ventas ──
