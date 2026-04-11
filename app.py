@@ -2010,7 +2010,8 @@ def render_kpis(client=None, local_key="default", local_name=None):
     total_clients = s["total_clients"]
     total_tables = len(table_data)
     total_seats = sum(t.get("capacity", 0) for t in table_data)
-    dias_periodo = (end_of_month - first_of_month).days + 1
+    _fecha_real = min(end_of_month, date.today()) if is_current_month else end_of_month
+    dias_periodo = (_fecha_real - first_of_month).days + 1
 
     # ══════════════════════════════════════════
     # CALCULOS DE KPIs
@@ -2248,7 +2249,7 @@ def render_kpis(client=None, local_key="default", local_name=None):
     sec("⚙️", "KPIs Operativos")
 
     st.markdown(f"""<div style="font-size:0.78rem;color:{TEXT_SECONDARY};margin-bottom:10px;">
-        Periodo: {first_of_month.strftime('%d/%m/%Y')} al {end_of_month.strftime('%d/%m/%Y')} ({dias_periodo} dias)
+        Periodo: {first_of_month.strftime('%d/%m/%Y')} al {_fecha_real.strftime('%d/%m/%Y')} ({dias_periodo} dias)
         — {total_seats} asientos en {total_tables} mesas — {horas_op}h diarias — {m2} m²
     </div>""", unsafe_allow_html=True)
 
