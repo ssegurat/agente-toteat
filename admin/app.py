@@ -909,7 +909,7 @@ with tab_usuarios:
 
 with tab_billing:
     subscriptions = safe_query(lambda: sb.table("subscriptions").select("*, companies(name)").execute())
-    payments = safe_query(lambda: sb.table("payments").select("*, companies(name)").order("created_at", desc=True).execute())
+    payments = safe_query(lambda: sb.table("payments").select("*, companies(name)").order("timestamp", desc=True).execute())
 
     # KPIs
     active_subs = [s for s in subscriptions if (s.get("status") or "").lower() == "active"]
@@ -965,7 +965,7 @@ with tab_billing:
                 "Monto USD": f"${float(p.get('amount_usd') or 0):,.2f}",
                 "Estado": (p.get("status") or "N/A").upper(),
                 "Metodo": p.get("method", "N/A"),
-                "Fecha": (p.get("created_at") or "")[:10],
+                "Fecha": (p.get("timestamp") or "")[:10],
             })
         df_pays = pd.DataFrame(pay_data)
         st.dataframe(df_pays, use_container_width=True, hide_index=True)
@@ -978,7 +978,7 @@ with tab_billing:
     if payments:
         try:
             pay_df = pd.DataFrame(payments)
-            pay_df["created_at"] = pd.to_datetime(pay_df["created_at"], errors="coerce")
+            pay_df["timestamp"] = pd.to_datetime(pay_df["timestamp"], errors="coerce")
             pay_df["amount_usd"] = pd.to_numeric(pay_df["amount_usd"], errors="coerce").fillna(0)
             pay_df = pay_df.dropna(subset=["timestamp"])
 
