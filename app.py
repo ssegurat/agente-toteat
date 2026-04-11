@@ -1179,89 +1179,89 @@ def render_dashboard(client=None, local_key="default", local_name=None):
     sec("📄", "Documentos Fiscales")
     try:
         raw_fiscal = preload.get("fiscal")
-            if isinstance(raw_fiscal, list):
-                fiscal_data = raw_fiscal
-            elif isinstance(raw_fiscal, dict):
-                fiscal_data = raw_fiscal.get("data", [])
-            else:
-                fiscal_data = []
+        if isinstance(raw_fiscal, list):
+            fiscal_data = raw_fiscal
+        elif isinstance(raw_fiscal, dict):
+            fiscal_data = raw_fiscal.get("data", [])
+        else:
+            fiscal_data = []
 
-            if fiscal_data:
-                total_docs = len(fiscal_data)
-                boletas = [d for d in fiscal_data if d.get("type", d.get("documentType", "")).lower() in ("boleta", "receipt", "ticket")]
-                facturas = [d for d in fiscal_data if d.get("type", d.get("documentType", "")).lower() in ("factura", "invoice")]
-                # Si no se clasificaron, intentar por otro campo
-                if not boletas and not facturas:
-                    for d in fiscal_data:
-                        dtype = str(d.get("type", d.get("documentType", ""))).lower()
-                        if "boleta" in dtype or "receipt" in dtype or "ticket" in dtype:
-                            boletas.append(d)
-                        elif "factura" in dtype or "invoice" in dtype:
-                            facturas.append(d)
-                        else:
-                            boletas.append(d)  # Por defecto a boletas
+        if fiscal_data:
+            total_docs = len(fiscal_data)
+            boletas = [d for d in fiscal_data if d.get("type", d.get("documentType", "")).lower() in ("boleta", "receipt", "ticket")]
+            facturas = [d for d in fiscal_data if d.get("type", d.get("documentType", "")).lower() in ("factura", "invoice")]
+            # Si no se clasificaron, intentar por otro campo
+            if not boletas and not facturas:
+                for d in fiscal_data:
+                    dtype = str(d.get("type", d.get("documentType", ""))).lower()
+                    if "boleta" in dtype or "receipt" in dtype or "ticket" in dtype:
+                        boletas.append(d)
+                    elif "factura" in dtype or "invoice" in dtype:
+                        facturas.append(d)
+                    else:
+                        boletas.append(d)  # Por defecto a boletas
 
-                total_boletas = len(boletas)
-                total_facturas = len(facturas)
-                monto_boletas = sum(d.get("total", d.get("amount", 0)) for d in boletas)
-                monto_facturas = sum(d.get("total", d.get("amount", 0)) for d in facturas)
-                monto_total = monto_boletas + monto_facturas
+            total_boletas = len(boletas)
+            total_facturas = len(facturas)
+            monto_boletas = sum(d.get("total", d.get("amount", 0)) for d in boletas)
+            monto_facturas = sum(d.get("total", d.get("amount", 0)) for d in facturas)
+            monto_total = monto_boletas + monto_facturas
 
-                # KPIs
-                c1, c2, c3, c4 = st.columns(4)
-                with c1:
-                    st.markdown(kpi("📄", "Total Documentos", str(total_docs)), unsafe_allow_html=True)
-                with c2:
-                    st.markdown(kpi("🧾", "Boletas", str(total_boletas), f"{fmt(monto_boletas)}"), unsafe_allow_html=True)
-                with c3:
-                    st.markdown(kpi("📑", "Facturas", str(total_facturas), f"{fmt(monto_facturas)}"), unsafe_allow_html=True)
-                with c4:
-                    st.markdown(kpi("💰", "Monto Total", fmt(monto_total)), unsafe_allow_html=True)
+            # KPIs
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.markdown(kpi("📄", "Total Documentos", str(total_docs)), unsafe_allow_html=True)
+            with c2:
+                st.markdown(kpi("🧾", "Boletas", str(total_boletas), f"{fmt(monto_boletas)}"), unsafe_allow_html=True)
+            with c3:
+                st.markdown(kpi("📑", "Facturas", str(total_facturas), f"{fmt(monto_facturas)}"), unsafe_allow_html=True)
+            with c4:
+                st.markdown(kpi("💰", "Monto Total", fmt(monto_total)), unsafe_allow_html=True)
 
-                st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
 
-                # Graficos: Pie por cantidad y por monto
-                ch1, ch2 = st.columns(2)
-                with ch1:
-                    if total_boletas or total_facturas:
-                        fig = go.Figure(go.Pie(
-                            labels=["Boletas", "Facturas"],
-                            values=[total_boletas, total_facturas],
-                            hole=0.55, textinfo="label+percent+value",
-                            textfont=dict(color="#1a1a1a", size=12), textposition="outside",
-                            marker=dict(colors=[TOTEAT_RED, "#1a1a1a"]),
-                            hovertemplate="<b>%{label}</b><br>%{value} docs<br>%{percent}<extra></extra>",
-                        ))
-                        fig.update_layout(title="Documentos por Tipo (Cantidad)", height=300, showlegend=False, **PLOTLY_LAYOUT)
-                        st.plotly_chart(fig, use_container_width=True)
+            # Graficos: Pie por cantidad y por monto
+            ch1, ch2 = st.columns(2)
+            with ch1:
+                if total_boletas or total_facturas:
+                    fig = go.Figure(go.Pie(
+                        labels=["Boletas", "Facturas"],
+                        values=[total_boletas, total_facturas],
+                        hole=0.55, textinfo="label+percent+value",
+                        textfont=dict(color="#1a1a1a", size=12), textposition="outside",
+                        marker=dict(colors=[TOTEAT_RED, "#1a1a1a"]),
+                        hovertemplate="<b>%{label}</b><br>%{value} docs<br>%{percent}<extra></extra>",
+                    ))
+                    fig.update_layout(title="Documentos por Tipo (Cantidad)", height=300, showlegend=False, **PLOTLY_LAYOUT)
+                    st.plotly_chart(fig, use_container_width=True)
 
-                with ch2:
-                    if monto_boletas or monto_facturas:
-                        fig = go.Figure(go.Pie(
-                            labels=["Boletas", "Facturas"],
-                            values=[monto_boletas, monto_facturas],
-                            hole=0.55, textinfo="label+percent",
-                            textfont=dict(color="#1a1a1a", size=12), textposition="outside",
-                            marker=dict(colors=[TOTEAT_RED, "#1a1a1a"]),
-                            hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
-                        ))
-                        fig.update_layout(title="Documentos por Tipo (Monto)", height=300, showlegend=False, **PLOTLY_LAYOUT)
-                        st.plotly_chart(fig, use_container_width=True)
+            with ch2:
+                if monto_boletas or monto_facturas:
+                    fig = go.Figure(go.Pie(
+                        labels=["Boletas", "Facturas"],
+                        values=[monto_boletas, monto_facturas],
+                        hole=0.55, textinfo="label+percent",
+                        textfont=dict(color="#1a1a1a", size=12), textposition="outside",
+                        marker=dict(colors=[TOTEAT_RED, "#1a1a1a"]),
+                        hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
+                    ))
+                    fig.update_layout(title="Documentos por Tipo (Monto)", height=300, showlegend=False, **PLOTLY_LAYOUT)
+                    st.plotly_chart(fig, use_container_width=True)
 
-                # Tabla detalle
-                with st.expander("Ver detalle de documentos fiscales"):
-                    rows_fiscal = []
-                    for d in fiscal_data:
-                        rows_fiscal.append({
-                            "Fecha": str(d.get("date", d.get("createdAt", "")))[:16].replace("T", " "),
-                            "Tipo": d.get("type", d.get("documentType", "N/A")),
-                            "Numero": d.get("number", d.get("documentNumber", d.get("folio", "N/A"))),
-                            "Monto": fmt_full(d.get("total", d.get("amount", 0))),
-                        })
-                    if rows_fiscal:
-                        st.dataframe(rows_fiscal, use_container_width=True, hide_index=True)
-            else:
-                st.info("Sin documentos fiscales en este periodo.")
+            # Tabla detalle
+            with st.expander("Ver detalle de documentos fiscales"):
+                rows_fiscal = []
+                for d in fiscal_data:
+                    rows_fiscal.append({
+                        "Fecha": str(d.get("date", d.get("createdAt", "")))[:16].replace("T", " "),
+                        "Tipo": d.get("type", d.get("documentType", "N/A")),
+                        "Numero": d.get("number", d.get("documentNumber", d.get("folio", "N/A"))),
+                        "Monto": fmt_full(d.get("total", d.get("amount", 0))),
+                    })
+                if rows_fiscal:
+                    st.dataframe(rows_fiscal, use_container_width=True, hide_index=True)
+        else:
+            st.info("Sin documentos fiscales en este periodo.")
     except Exception as e:
         st.error(f"Error al cargar documentos fiscales: {e}")
 
@@ -1269,18 +1269,18 @@ def render_dashboard(client=None, local_key="default", local_name=None):
     sec("📋", "Menu del Restaurante")
     try:
         products = preload.get("products") or {}
-            data = products.get("data", products)
-            if isinstance(data, list):
-                for cat in data:
-                    cn = cat.get("categoryName", cat.get("name", "?"))
-                    items = cat.get("products", cat.get("items", []))
-                    if items:
-                        with st.expander(f"**{cn}** — {len(items)} productos"):
-                            rows = [{"Producto": p.get("productName", p.get("name", "")),
-                                     "Precio": fmt_full(p.get("price", p.get("productPrice", 0))),
-                                     "Estado": "Disponible" if p.get("available", p.get("active", True)) else "No disponible"}
-                                    for p in items]
-                            st.dataframe(rows, use_container_width=True, hide_index=True)
+        data = products.get("data", products)
+        if isinstance(data, list):
+            for cat in data:
+                cn = cat.get("categoryName", cat.get("name", "?"))
+                items = cat.get("products", cat.get("items", []))
+                if items:
+                    with st.expander(f"**{cn}** — {len(items)} productos"):
+                        rows = [{"Producto": p.get("productName", p.get("name", "")),
+                                 "Precio": fmt_full(p.get("price", p.get("productPrice", 0))),
+                                 "Estado": "Disponible" if p.get("available", p.get("active", True)) else "No disponible"}
+                                for p in items]
+                        st.dataframe(rows, use_container_width=True, hide_index=True)
     except Exception as e:
         st.error(f"Error: {e}")
 
@@ -1305,77 +1305,77 @@ def render_dashboard(client=None, local_key="default", local_name=None):
         raw_coll = preload.get("collection") if coll_date == sf else cached_get_collection(client, coll_date.isoformat(), local_key=local_key)
         coll_data = raw_coll.get("data", raw_coll) if isinstance(raw_coll, dict) else raw_coll if raw_coll else []
 
-            # Extraer medios de pago desde ventas
-            payment_methods = {}
-            total_recaudado = 0
-            for order in coll_sales_data:
-                for pf in order.get("paymentForms", []):
-                    method = pf.get("name", "Otro")
-                    amount = float(pf.get("amount", 0))
-                    payment_methods[method] = payment_methods.get(method, 0) + amount
-                    total_recaudado += amount
+        # Extraer medios de pago desde ventas
+        payment_methods = {}
+        total_recaudado = 0
+        for order in coll_sales_data:
+            for pf in order.get("paymentForms", []):
+                method = pf.get("name", "Otro")
+                amount = float(pf.get("amount", 0))
+                payment_methods[method] = payment_methods.get(method, 0) + amount
+                total_recaudado += amount
 
-            # Extraer info de cajas desde collection
-            cajas_info = []
-            if isinstance(coll_data, dict):
-                shifts = coll_data.get("shifts", {})
-                for shift_id, shift in shifts.items():
-                    shift_name = shift.get("name", f"Turno {shift_id}")
-                    registers = shift.get("registers", {})
-                    for reg_id, reg_list in registers.items():
-                        if isinstance(reg_list, list):
-                            for reg in reg_list:
-                                cajas_info.append({
-                                    "Turno": shift_name,
-                                    "Caja": reg.get("registerName", f"Caja {reg_id}"),
-                                    "Apertura": reg.get("openedDate", "")[:16].replace("T", " "),
-                                    "Cierre": reg.get("closedDate", "")[:16].replace("T", " ") if reg.get("closedDate") else "Abierta",
-                                })
+        # Extraer info de cajas desde collection
+        cajas_info = []
+        if isinstance(coll_data, dict):
+            shifts = coll_data.get("shifts", {})
+            for shift_id, shift in shifts.items():
+                shift_name = shift.get("name", f"Turno {shift_id}")
+                registers = shift.get("registers", {})
+                for reg_id, reg_list in registers.items():
+                    if isinstance(reg_list, list):
+                        for reg in reg_list:
+                            cajas_info.append({
+                                "Turno": shift_name,
+                                "Caja": reg.get("registerName", f"Caja {reg_id}"),
+                                "Apertura": reg.get("openedDate", "")[:16].replace("T", " "),
+                                "Cierre": reg.get("closedDate", "")[:16].replace("T", " ") if reg.get("closedDate") else "Abierta",
+                            })
 
-            if not coll_sales_data:
-                st.info("Sin ventas registradas para este dia.")
-            else:
-                # KPIs
-                num_medios = len(payment_methods)
-                num_ordenes = len(coll_sales_data)
-                c1, c2, c3, c4 = st.columns(4)
-                with c1:
-                    st.markdown(kpi("💰", "Total Recaudado", fmt(total_recaudado)), unsafe_allow_html=True)
-                with c2:
-                    st.markdown(kpi("🧾", "Ordenes del Dia", str(num_ordenes)), unsafe_allow_html=True)
-                with c3:
-                    st.markdown(kpi("💳", "Medios de Pago", str(num_medios)), unsafe_allow_html=True)
-                with c4:
-                    top_method = max(payment_methods, key=payment_methods.get) if payment_methods else "N/A"
-                    top_amount = payment_methods.get(top_method, 0) if payment_methods else 0
-                    st.markdown(kpi("🥇", "Medio Principal", top_method, f"{fmt(top_amount)}"), unsafe_allow_html=True)
+        if not coll_sales_data:
+            st.info("Sin ventas registradas para este dia.")
+        else:
+            # KPIs
+            num_medios = len(payment_methods)
+            num_ordenes = len(coll_sales_data)
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.markdown(kpi("💰", "Total Recaudado", fmt(total_recaudado)), unsafe_allow_html=True)
+            with c2:
+                st.markdown(kpi("🧾", "Ordenes del Dia", str(num_ordenes)), unsafe_allow_html=True)
+            with c3:
+                st.markdown(kpi("💳", "Medios de Pago", str(num_medios)), unsafe_allow_html=True)
+            with c4:
+                top_method = max(payment_methods, key=payment_methods.get) if payment_methods else "N/A"
+                top_amount = payment_methods.get(top_method, 0) if payment_methods else 0
+                st.markdown(kpi("🥇", "Medio Principal", top_method, f"{fmt(top_amount)}"), unsafe_allow_html=True)
 
-                if payment_methods and len(payment_methods) > 1:
-                    st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
-                    ch_coll1, ch_coll2 = st.columns(2)
+            if payment_methods and len(payment_methods) > 1:
+                st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+                ch_coll1, ch_coll2 = st.columns(2)
 
-                    with ch_coll1:
-                        df_coll = pd.DataFrame([{"Medio de Pago": k, "Monto": v} for k, v in payment_methods.items()])
-                        df_coll = df_coll.sort_values("Monto", ascending=False)
-                        fig = go.Figure(go.Pie(
-                            labels=df_coll["Medio de Pago"], values=df_coll["Monto"],
-                            hole=0.55, textinfo="label+percent", textfont=dict(color="#1a1a1a", size=12),
-                            textposition="outside",
-                            marker=dict(colors=CHART_COLORS),
-                            hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
-                        ))
-                        fig.update_layout(title="Recaudacion por Medio de Pago", height=340, showlegend=False, **PLOTLY_LAYOUT)
-                        st.plotly_chart(fig, use_container_width=True)
+                with ch_coll1:
+                    df_coll = pd.DataFrame([{"Medio de Pago": k, "Monto": v} for k, v in payment_methods.items()])
+                    df_coll = df_coll.sort_values("Monto", ascending=False)
+                    fig = go.Figure(go.Pie(
+                        labels=df_coll["Medio de Pago"], values=df_coll["Monto"],
+                        hole=0.55, textinfo="label+percent", textfont=dict(color="#1a1a1a", size=12),
+                        textposition="outside",
+                        marker=dict(colors=CHART_COLORS),
+                        hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>",
+                    ))
+                    fig.update_layout(title="Recaudacion por Medio de Pago", height=340, showlegend=False, **PLOTLY_LAYOUT)
+                    st.plotly_chart(fig, use_container_width=True)
 
-                    with ch_coll2:
-                        df_coll_display = df_coll.copy()
-                        df_coll_display["% del Total"] = (df_coll_display["Monto"] / df_coll_display["Monto"].sum() * 100).round(1).apply(lambda x: f"{x}%")
-                        df_coll_display["Monto"] = df_coll_display["Monto"].apply(fmt_full)
-                        st.dataframe(df_coll_display, use_container_width=True, hide_index=True)
+                with ch_coll2:
+                    df_coll_display = df_coll.copy()
+                    df_coll_display["% del Total"] = (df_coll_display["Monto"] / df_coll_display["Monto"].sum() * 100).round(1).apply(lambda x: f"{x}%")
+                    df_coll_display["Monto"] = df_coll_display["Monto"].apply(fmt_full)
+                    st.dataframe(df_coll_display, use_container_width=True, hide_index=True)
 
-            if cajas_info:
-                with st.expander("Ver detalle de cajas"):
-                    st.dataframe(cajas_info, use_container_width=True, hide_index=True)
+        if cajas_info:
+            with st.expander("Ver detalle de cajas"):
+                st.dataframe(cajas_info, use_container_width=True, hide_index=True)
 
     except Exception as e:
         st.error(f"Error al cargar recaudacion: {e}")
@@ -1386,80 +1386,80 @@ def render_dashboard(client=None, local_key="default", local_name=None):
     sec("📦", "Estado de Inventario")
     try:
         raw_inv = preload.get("inventory") or {}
-            inv_data = raw_inv.get("data", raw_inv) if isinstance(raw_inv, dict) else raw_inv
+        inv_data = raw_inv.get("data", raw_inv) if isinstance(raw_inv, dict) else raw_inv
 
-            if not inv_data:
-                st.info("Sin datos de inventario para este periodo.")
-            else:
-                items_list = []
-                if isinstance(inv_data, list):
-                    items_list = inv_data
-                elif isinstance(inv_data, dict):
-                    items_list = inv_data.get("items", inv_data.get("movements", inv_data.get("products", [])))
-                    if not items_list and isinstance(inv_data, dict):
-                        items_list = [inv_data]
+        if not inv_data:
+            st.info("Sin datos de inventario para este periodo.")
+        else:
+            items_list = []
+            if isinstance(inv_data, list):
+                items_list = inv_data
+            elif isinstance(inv_data, dict):
+                items_list = inv_data.get("items", inv_data.get("movements", inv_data.get("products", [])))
+                if not items_list and isinstance(inv_data, dict):
+                    items_list = [inv_data]
 
-                total_items = len(items_list)
-                total_movements = 0
-                low_stock_items = []
+            total_items = len(items_list)
+            total_movements = 0
+            low_stock_items = []
 
-                rows_inv = []
-                for item in items_list:
-                    name = item.get("productName", item.get("name", item.get("product", "?")))
-                    stock = item.get("stock", item.get("currentStock", item.get("quantity", 0)))
-                    min_stock = item.get("minStock", item.get("minimumStock", item.get("reorderPoint", 0)))
-                    movements = item.get("movements", item.get("totalMovements", 0))
-                    unit = item.get("unit", item.get("unitName", ""))
+            rows_inv = []
+            for item in items_list:
+                name = item.get("productName", item.get("name", item.get("product", "?")))
+                stock = item.get("stock", item.get("currentStock", item.get("quantity", 0)))
+                min_stock = item.get("minStock", item.get("minimumStock", item.get("reorderPoint", 0)))
+                movements = item.get("movements", item.get("totalMovements", 0))
+                unit = item.get("unit", item.get("unitName", ""))
 
-                    if isinstance(movements, (int, float)):
-                        total_movements += abs(int(movements))
-                    elif isinstance(movements, list):
-                        total_movements += len(movements)
+                if isinstance(movements, (int, float)):
+                    total_movements += abs(int(movements))
+                elif isinstance(movements, list):
+                    total_movements += len(movements)
 
-                    try:
-                        stock_val = float(stock)
-                        min_val = float(min_stock) if min_stock else 0
-                        if min_val > 0 and stock_val <= min_val:
-                            low_stock_items.append(name)
-                        estado = "Bajo" if (min_val > 0 and stock_val <= min_val) else "Normal"
-                    except (ValueError, TypeError):
-                        stock_val = stock
-                        estado = "?"
+                try:
+                    stock_val = float(stock)
+                    min_val = float(min_stock) if min_stock else 0
+                    if min_val > 0 and stock_val <= min_val:
+                        low_stock_items.append(name)
+                    estado = "Bajo" if (min_val > 0 and stock_val <= min_val) else "Normal"
+                except (ValueError, TypeError):
+                    stock_val = stock
+                    estado = "?"
 
-                    rows_inv.append({
-                        "Producto": name,
-                        "Stock Actual": stock,
-                        "Stock Minimo": min_stock if min_stock else "-",
-                        "Unidad": unit,
-                        "Estado": estado,
-                    })
+                rows_inv.append({
+                    "Producto": name,
+                    "Stock Actual": stock,
+                    "Stock Minimo": min_stock if min_stock else "-",
+                    "Unidad": unit,
+                    "Estado": estado,
+                })
 
-                # KPIs
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    st.markdown(kpi("📦", "Items en Inventario", str(total_items)), unsafe_allow_html=True)
-                with c2:
-                    sub_low = f"{len(low_stock_items)} items bajo minimo" if low_stock_items else "Todo en orden"
-                    sub_type_low = "red" if low_stock_items else "normal"
-                    st.markdown(kpi("⚠️", "Stock Bajo", str(len(low_stock_items)), sub_low, sub_type_low), unsafe_allow_html=True)
-                with c3:
-                    st.markdown(kpi("🔄", "Movimientos", str(total_movements)), unsafe_allow_html=True)
+            # KPIs
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.markdown(kpi("📦", "Items en Inventario", str(total_items)), unsafe_allow_html=True)
+            with c2:
+                sub_low = f"{len(low_stock_items)} items bajo minimo" if low_stock_items else "Todo en orden"
+                sub_type_low = "red" if low_stock_items else "normal"
+                st.markdown(kpi("⚠️", "Stock Bajo", str(len(low_stock_items)), sub_low, sub_type_low), unsafe_allow_html=True)
+            with c3:
+                st.markdown(kpi("🔄", "Movimientos", str(total_movements)), unsafe_allow_html=True)
 
-                # Alerta de items con stock bajo
-                if low_stock_items:
-                    st.markdown(
-                        f"<div style='background:{WARNING_BG};border:1px solid {WARNING}30;border-radius:10px;"
-                        f"padding:12px 16px;margin:10px 0;font-size:0.85rem;color:#92400e;'>"
-                        f"<strong>Atencion:</strong> Los siguientes items podrian estar por agotarse: "
-                        f"<strong>{', '.join(low_stock_items[:10])}</strong>"
-                        f"{'...' if len(low_stock_items) > 10 else ''}. "
-                        f"Se recomienda revisar proveedores y programar reposicion.</div>",
-                        unsafe_allow_html=True,
-                    )
+            # Alerta de items con stock bajo
+            if low_stock_items:
+                st.markdown(
+                    f"<div style='background:{WARNING_BG};border:1px solid {WARNING}30;border-radius:10px;"
+                    f"padding:12px 16px;margin:10px 0;font-size:0.85rem;color:#92400e;'>"
+                    f"<strong>Atencion:</strong> Los siguientes items podrian estar por agotarse: "
+                    f"<strong>{', '.join(low_stock_items[:10])}</strong>"
+                    f"{'...' if len(low_stock_items) > 10 else ''}. "
+                    f"Se recomienda revisar proveedores y programar reposicion.</div>",
+                    unsafe_allow_html=True,
+                )
 
-                if rows_inv:
-                    with st.expander("Ver tabla de inventario"):
-                        st.dataframe(rows_inv, use_container_width=True, hide_index=True)
+            if rows_inv:
+                with st.expander("Ver tabla de inventario"):
+                    st.dataframe(rows_inv, use_container_width=True, hide_index=True)
 
     except Exception as e:
         st.error(f"Error al cargar inventario: {e}")
@@ -1470,82 +1470,82 @@ def render_dashboard(client=None, local_key="default", local_name=None):
     sec("📒", "Movimientos Contables")
     try:
         raw_acc = preload.get("accounting") or {}
-            acc_data = raw_acc.get("data", raw_acc) if isinstance(raw_acc, dict) else raw_acc
+        acc_data = raw_acc.get("data", raw_acc) if isinstance(raw_acc, dict) else raw_acc
 
-            if not acc_data:
-                st.info("Sin movimientos contables para este periodo.")
-            else:
-                mov_list = []
-                if isinstance(acc_data, list):
-                    mov_list = acc_data
-                elif isinstance(acc_data, dict):
-                    mov_list = acc_data.get("movements", acc_data.get("items", acc_data.get("data", [])))
-                    if not mov_list and isinstance(acc_data, dict):
-                        mov_list = [acc_data]
+        if not acc_data:
+            st.info("Sin movimientos contables para este periodo.")
+        else:
+            mov_list = []
+            if isinstance(acc_data, list):
+                mov_list = acc_data
+            elif isinstance(acc_data, dict):
+                mov_list = acc_data.get("movements", acc_data.get("items", acc_data.get("data", [])))
+                if not mov_list and isinstance(acc_data, dict):
+                    mov_list = [acc_data]
 
-                total_ingresos = 0
-                total_egresos = 0
-                rows_acc = []
+            total_ingresos = 0
+            total_egresos = 0
+            rows_acc = []
 
-                for mov in mov_list:
-                    concepto = mov.get("concept", mov.get("description", mov.get("name", "?")))
-                    tipo = mov.get("type", mov.get("movementType", mov.get("category", "")))
-                    monto = float(mov.get("amount", mov.get("total", 0)))
-                    fecha = mov.get("date", mov.get("createdAt", ""))
+            for mov in mov_list:
+                concepto = mov.get("concept", mov.get("description", mov.get("name", "?")))
+                tipo = mov.get("type", mov.get("movementType", mov.get("category", "")))
+                monto = float(mov.get("amount", mov.get("total", 0)))
+                fecha = mov.get("date", mov.get("createdAt", ""))
 
-                    is_ingreso = tipo.lower() in ("ingreso", "income", "in", "credit", "venta", "sale") if isinstance(tipo, str) and tipo else monto >= 0
+                is_ingreso = tipo.lower() in ("ingreso", "income", "in", "credit", "venta", "sale") if isinstance(tipo, str) and tipo else monto >= 0
 
-                    if is_ingreso:
-                        total_ingresos += abs(monto)
-                    else:
-                        total_egresos += abs(monto)
+                if is_ingreso:
+                    total_ingresos += abs(monto)
+                else:
+                    total_egresos += abs(monto)
 
-                    rows_acc.append({
-                        "Fecha": str(fecha)[:10] if len(str(fecha)) >= 10 else str(fecha),
-                        "Concepto": concepto,
-                        "Tipo": "Ingreso" if is_ingreso else "Egreso",
-                        "Monto": fmt_full(abs(monto)),
-                    })
+                rows_acc.append({
+                    "Fecha": str(fecha)[:10] if len(str(fecha)) >= 10 else str(fecha),
+                    "Concepto": concepto,
+                    "Tipo": "Ingreso" if is_ingreso else "Egreso",
+                    "Monto": fmt_full(abs(monto)),
+                })
 
-                balance = total_ingresos - total_egresos
+            balance = total_ingresos - total_egresos
 
-                # KPIs
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    st.markdown(kpi("📈", "Total Ingresos", fmt(total_ingresos)), unsafe_allow_html=True)
-                with c2:
-                    st.markdown(kpi("📉", "Total Egresos", fmt(total_egresos)), unsafe_allow_html=True)
-                with c3:
-                    balance_sub = "Positivo" if balance >= 0 else "Negativo"
-                    balance_type = "normal" if balance >= 0 else "red"
-                    st.markdown(kpi("💹", "Balance Neto", fmt(balance), balance_sub, balance_type), unsafe_allow_html=True)
+            # KPIs
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.markdown(kpi("📈", "Total Ingresos", fmt(total_ingresos)), unsafe_allow_html=True)
+            with c2:
+                st.markdown(kpi("📉", "Total Egresos", fmt(total_egresos)), unsafe_allow_html=True)
+            with c3:
+                balance_sub = "Positivo" if balance >= 0 else "Negativo"
+                balance_type = "normal" if balance >= 0 else "red"
+                st.markdown(kpi("💹", "Balance Neto", fmt(balance), balance_sub, balance_type), unsafe_allow_html=True)
 
-                st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+            st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
 
-                # Grafico de barras Ingresos vs Egresos
-                if total_ingresos > 0 or total_egresos > 0:
-                    fig = go.Figure(data=[
-                        go.Bar(
-                            x=["Ingresos", "Egresos"],
-                            y=[total_ingresos, total_egresos],
-                            marker=dict(color=[SUCCESS, DANGER], cornerradius=4),
-                            text=[fmt(total_ingresos), fmt(total_egresos)],
-                            textposition="outside",
-                            textfont=dict(color="#374151", size=12),
-                            hovertemplate="<b>%{x}</b><br>$%{y:,.0f}<extra></extra>",
-                        )
-                    ])
-                    fig.update_layout(
-                        title="Ingresos vs Egresos",
-                        height=320,
-                        yaxis_range=[0, max(total_ingresos, total_egresos) * 1.25],
-                        **PLOTLY_LAYOUT,
+            # Grafico de barras Ingresos vs Egresos
+            if total_ingresos > 0 or total_egresos > 0:
+                fig = go.Figure(data=[
+                    go.Bar(
+                        x=["Ingresos", "Egresos"],
+                        y=[total_ingresos, total_egresos],
+                        marker=dict(color=[SUCCESS, DANGER], cornerradius=4),
+                        text=[fmt(total_ingresos), fmt(total_egresos)],
+                        textposition="outside",
+                        textfont=dict(color="#374151", size=12),
+                        hovertemplate="<b>%{x}</b><br>$%{y:,.0f}<extra></extra>",
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                ])
+                fig.update_layout(
+                    title="Ingresos vs Egresos",
+                    height=320,
+                    yaxis_range=[0, max(total_ingresos, total_egresos) * 1.25],
+                    **PLOTLY_LAYOUT,
+                )
+                st.plotly_chart(fig, use_container_width=True)
 
-                if rows_acc:
-                    with st.expander("Ver tabla de movimientos contables"):
-                        st.dataframe(rows_acc, use_container_width=True, hide_index=True)
+            if rows_acc:
+                with st.expander("Ver tabla de movimientos contables"):
+                    st.dataframe(rows_acc, use_container_width=True, hide_index=True)
 
     except Exception as e:
         st.error(f"Error al cargar movimientos contables: {e}")
