@@ -3,10 +3,10 @@ import requests
 
 
 class ToteatAPI:
-    """Cliente para la API de Toteat. Autenticación via query parameters."""
+    """Cliente para la API de Toteat. Thread-safe (sin Session compartida)."""
 
-    MAX_RETRIES = 3
-    RETRY_BACKOFF = [2, 5, 10]
+    MAX_RETRIES = 2
+    RETRY_BACKOFF = [2, 5]
 
     def __init__(self, api_token: str, restaurant_id: str, local_id: str, user_id: str,
                  base_url: str = "https://api.toteat.com/mw/or/1.0/"):
@@ -15,9 +15,6 @@ class ToteatAPI:
         self.local_id = local_id
         self.user_id = user_id
         self.base_url = base_url.rstrip("/")
-        # Connection pooling — reutiliza TCP/TLS entre llamadas
-        self.session = requests.Session()
-        self.session.headers.update({"Accept": "application/json"})
 
     def _auth_params(self) -> dict:
         return {
@@ -27,10 +24,10 @@ class ToteatAPI:
             "xapitoken": self.api_token,
         }
 
-    def _request_with_retry(self, method, url, timeout=15, **kwargs):
-        """Ejecuta request con retry automático en caso de 429."""
+    def _request_with_retry(self, url, timeout=15, **kwargs):
+        """GET con retry en 429. Thread-safe (usa requests.get directo)."""
         for attempt in range(self.MAX_RETRIES):
-            response = method(url, timeout=timeout, **kwargs)
+            response = requests.get(url, timeout=timeout, **kwargs)
             if response.status_code == 429:
                 wait = self.RETRY_BACKOFF[min(attempt, len(self.RETRY_BACKOFF) - 1)]
                 time.sleep(wait)
@@ -38,6 +35,7 @@ class ToteatAPI:
             response.raise_for_status()
             return response.json()
         # Último intento
+        response = requests.get(url, timeout=timeout, **kwargs)
         response.raise_for_status()
         return response.json()
 
@@ -46,21 +44,11 @@ class ToteatAPI:
         all_params = self._auth_params()
         if params:
             all_params.update(params)
-        return self._request_with_retry(self.session.get, url, timeout=timeout, params=all_params)
-
-    def _post(self, endpoint: str, params: dict = None, data: dict = None) -> dict:
-        url = f"{self.base_url}/{endpoint.lstrip('/')}"
-        all_params = self._auth_params()
-        if params:
-            all_params.update(params)
-        return self._request_with_retry(self.session.post, url, params=all_params, json=data)
+        return self._request_with_retry(url, timeout=timeout, params=all_params)
 
     @staticmethod
     def _format_date(date_str: str) -> str:
-        """Convierte YYYY-MM-DD a YYYYMMDD."""
         return date_str.replace("-", "")
-
-    # ── Endpoints rápidos (timeout corto) ──
 
     def get_tables(self) -> dict:
         return self._get("tables", timeout=8)
@@ -73,8 +61,6 @@ class ToteatAPI:
 
     def get_collection(self, date: str) -> dict:
         return self._get("collection", {"date": self._format_date(date)}, timeout=10)
-
-    # ── Endpoints de datos (timeout estándar) ──
 
     def get_sales(self, date_from: str, date_to: str) -> dict:
         return self._get("sales", {
@@ -89,10 +75,7 @@ class ToteatAPI:
         })
 
     def get_order_status(self, order_ids: str, detail: bool = False) -> dict:
-        return self._get("orderstatus", {
-            "ic": order_ids,
-            "det": str(detail).lower(),
-        })
+        return self._get("orderstatus", {"ic": order_ids, "det": str(detail).lower()})
 
     def get_cancellation_report(self, date_from: str, date_to: str) -> dict:
         return self._get("orders/cancellation-report", {

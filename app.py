@@ -709,61 +709,35 @@ def parallel_load(tasks: dict):
     return results
 
 
-def _cache_key(prefix, *args):
-    """Genera cache key para session_state."""
-    return f"_cache_{prefix}_{'_'.join(str(a) for a in args)}"
-
-
-def _cached_or_fetch(key, fn, ttl=300):
-    """Cache manual en session_state con TTL. Thread-safe para parallel_load."""
-    import time as _time
-    full_key = f"_pcache_{key}"
-    ts_key = f"_pcache_ts_{key}"
-    now = _time.time()
-    if full_key in st.session_state:
-        if now - st.session_state.get(ts_key, 0) < ttl:
-            return st.session_state[full_key]
-    result = fn()
-    st.session_state[full_key] = result
-    st.session_state[ts_key] = now
-    return result
-
-
 def preload_dashboard_data(client, sf, st2, local_key="default"):
     """Carga TODOS los datos del dashboard en paralelo.
-    Usa st.cache_data cuando hay datos cacheados, API directa cuando no."""
+    Cache manual en session_state (st.cache_data no es thread-safe)."""
+    import time as _time
     sf_str, st2_str = sf.isoformat(), st2.isoformat()
+    cache_prefix = f"_dl_{local_key}_{sf_str}_{st2_str}"
 
-    # Primero intentar st.cache_data (instantáneo si cacheado)
-    results = {}
-    pending = {}
+    # Revisar si ya tenemos todo cacheado
+    if cache_prefix in st.session_state:
+        cached = st.session_state[cache_prefix]
+        age = _time.time() - cached.get("_ts", 0)
+        if age < 300:  # 5 min TTL
+            return cached
 
-    # Funciones cacheadas de Streamlit y sus keys
-    cache_calls = {
-        "shift": lambda: cached_get_shift(client, local_key=local_key),
-        "tables": lambda: cached_get_tables(client, local_key=local_key),
-        "fiscal": lambda: cached_get_fiscal_docs(client, sf_str, st2_str, local_key=local_key),
-        "products": lambda: cached_get_products(client, local_key=local_key),
-        "collection": lambda: cached_get_collection(client, sf_str, local_key=local_key),
-        "inventory": lambda: cached_get_inventory(client, sf_str, st2_str, local_key=local_key),
-        "accounting": lambda: cached_get_accounting(client, sf_str, st2_str, local_key=local_key),
+    # Cache miss — cargar todo en paralelo (7 llamadas simultáneas)
+    tasks = {
+        "shift": lambda: client.get_shift_status(),
+        "tables": lambda: client.get_tables(),
+        "fiscal": lambda: _chunked_api_call(client.get_fiscal_documents, sf_str, st2_str),
+        "products": lambda: client.get_products(),
+        "collection": lambda: client.get_collection(sf_str),
+        "inventory": lambda: client.get_inventory_state(sf_str, st2_str),
+        "accounting": lambda: client.get_accounting_movements(sf_str, st2_str),
     }
+    results = parallel_load(tasks)
+    results["_ts"] = _time.time()
 
-    # Intentar leer de cache de Streamlit primero (es instantáneo)
-    for key, fn in cache_calls.items():
-        try:
-            results[key] = fn()
-        except Exception:
-            # Cache miss o error — marcar para carga paralela
-            pending[key] = fn
-
-    # Si hay pendientes, cargarlos en paralelo
-    if pending:
-        parallel_results = parallel_load({
-            k: (lambda f=f: f()) for k, f in pending.items()
-        })
-        results.update(parallel_results)
-
+    # Guardar en session_state
+    st.session_state[cache_prefix] = results
     return results
 
 
