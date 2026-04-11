@@ -722,8 +722,10 @@ def preload_dashboard_data(client, sf, st2, local_key="default"):
     """Carga TODOS los datos del dashboard en paralelo.
     Cache manual en session_state (st.cache_data no es thread-safe)."""
     import time as _time
+    import calendar as _cal
     sf_str, st2_str = sf.isoformat(), st2.isoformat()
-    cache_prefix = f"_dl_{local_key}_{sf_str}_{st2_str}"
+    today = date.today()
+    cache_prefix = f"_dl_{local_key}_{sf_str}_{st2_str}_{today.isoformat()}"
 
     # Revisar si ya tenemos todo cacheado
     if cache_prefix in st.session_state:
@@ -732,7 +734,10 @@ def preload_dashboard_data(client, sf, st2, local_key="default"):
         if age < 300:  # 5 min TTL
             return cached
 
-    # Cache miss — cargar todo en paralelo (7 llamadas simultáneas)
+    # Cache miss — cargar todo en paralelo
+    first_of_month = date(today.year, today.month, 1).isoformat()
+    today_str = today.isoformat()
+
     tasks = {
         "shift": lambda: client.get_shift_status(),
         "tables": lambda: client.get_tables(),
@@ -741,6 +746,7 @@ def preload_dashboard_data(client, sf, st2, local_key="default"):
         "collection": lambda: client.get_collection(sf_str),
         "inventory": lambda: client.get_inventory_state(sf_str, st2_str),
         "accounting": lambda: client.get_accounting_movements(sf_str, st2_str),
+        "month_sales": lambda: _chunked_api_call(client.get_sales, first_of_month, today_str),
     }
     results = parallel_load(tasks)
     results["_ts"] = _time.time()
@@ -976,9 +982,11 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                 _defs = _load_restaurant_defaults()
                 _dc = _defs.get("dias_cierre_semana", 0)
                 _pres = _defs.get("presupuesto_venta_neta_mensual", 0)
-                # Solo mostrar si el filtro cubre desde el 1ro del mes actual
-                if sf == date(today.year, today.month, 1) and st2.month == today.month and st2.year == today.year:
-                    _pron = calcular_pronostico_mensual(s["total_sales"], sf.isoformat(), st2.isoformat(), _dc, _pres)
+                _month_raw = preload.get("month_sales") or {}
+                _month_data = _month_raw.get("data", []) if isinstance(_month_raw, dict) else _month_raw if isinstance(_month_raw, list) else []
+                _venta_mes = sum(o.get("total", 0) for o in _month_data) if _month_data else 0
+                if _venta_mes > 0:
+                    _pron = calcular_pronostico_mensual(_venta_mes, date(today.year, today.month, 1).isoformat(), today.isoformat(), _dc, _pres)
                     if _pron:
                         sec("📈", "Pronostico del Mes")
                         _pc1, _pc2, _pc3 = st.columns(3)
