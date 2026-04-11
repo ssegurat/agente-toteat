@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from dotenv import load_dotenv
 from toteat_api import ToteatAPI
 from tools import TOOLS, execute_tool, execute_tool_multi
+from pronostico import calcular_pronostico_mensual
 from datetime import date, timedelta
 import time
 
@@ -896,6 +897,80 @@ def render_dashboard(client=None, local_key="default", local_name=None):
         st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:#ff4235;margin-bottom:8px;">{local_name}</div>', unsafe_allow_html=True)
 
     # ══════════════════════════════════════════
+    # PRONÓSTICO DEL MES (nuevo bloque)
+    # ══════════════════════════════════════════
+    try:
+        import calendar as _cal
+        defaults_dash = _load_restaurant_defaults()
+        dias_cierre = defaults_dash.get("dias_cierre_semana", 0)
+        presupuesto = defaults_dash.get("presupuesto_venta_neta_mensual", 0)
+        first_of_current_month = date(today.year, today.month, 1)
+        last_day_current = _cal.monthrange(today.year, today.month)[1]
+        end_of_current_month = date(today.year, today.month, last_day_current)
+
+        # Cargar ventas del mes en curso
+        raw_month = cached_get_sales(client, first_of_current_month.isoformat(), today.isoformat(), local_key=local_key)
+        month_data = raw_month.get("data", [])
+        venta_mes = sum(o.get("total", 0) for o in month_data) if month_data else 0
+
+        pron = calcular_pronostico_mensual(
+            venta_acumulada=venta_mes,
+            fecha_desde=first_of_current_month.isoformat(),
+            fecha_hasta=today.isoformat(),
+            dias_cierre_semana=dias_cierre,
+            presupuesto_mensual=presupuesto,
+        )
+
+        sec("📈", "Pronostico del Mes")
+
+        if pron:
+            pc1, pc2, pc3 = st.columns(3)
+            with pc1:
+                st.markdown(kpi("📈", "Pronostico Mes", fmt(pron["pronostico_mes"]),
+                                f"Basado en {pron['dias_operados']} dias operados"), unsafe_allow_html=True)
+            with pc2:
+                if presupuesto > 0:
+                    st.markdown(kpi("🎯", "Presupuesto Mes", fmt(presupuesto),
+                                    "Meta mensual ingresada"), unsafe_allow_html=True)
+                else:
+                    st.markdown(kpi("🎯", "Presupuesto Mes", "—",
+                                    "Sin meta definida"), unsafe_allow_html=True)
+            with pc3:
+                if pron["vs_presupuesto_pct"] is not None:
+                    pct = pron["vs_presupuesto_pct"]
+                    monto = pron["vs_presupuesto_monto"]
+                    if pct >= 100:
+                        color = "normal"
+                        sub_text = f"▲ +{fmt(monto)} sobre presupuesto"
+                    elif pct >= 90:
+                        color = "warn"
+                        sub_text = f"▼ {fmt(abs(monto))} bajo presupuesto"
+                    else:
+                        color = "red"
+                        sub_text = f"▼ {fmt(abs(monto))} bajo presupuesto"
+                    st.markdown(kpi("⚡", "Avance vs Pres.", fmt_pct(pct), sub_text, color), unsafe_allow_html=True)
+                else:
+                    st.markdown(kpi("⚡", "Avance vs Pres.", "—",
+                                    "Sin meta definida"), unsafe_allow_html=True)
+
+            # Barra de progreso
+            avance = pron["porcentaje_avance_mes"]
+            bar_pct = min(avance, 100)
+            st.markdown(f"""<div style="margin:12px 0 4px 0;font-size:0.78rem;font-weight:700;color:{TEXT_PRIMARY};">
+                {pron['dias_operados']} de {pron['dias_operables_mes']} dias operables transcurridos ({avance}%)
+            </div>
+            <div style="background:{BORDER};border-radius:6px;height:10px;overflow:hidden;">
+                <div style="background:{TOTEAT_RED};width:{bar_pct}%;height:100%;border-radius:6px;transition:width 0.5s;"></div>
+            </div>""", unsafe_allow_html=True)
+
+            st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+        elif venta_mes == 0:
+            sec("📈", "Pronostico del Mes")
+            st.info("Sin ventas registradas en el mes actual.")
+    except Exception:
+        pass  # No bloquear el dashboard si el pronóstico falla
+
+    # ══════════════════════════════════════════
     # VENTAS (arriba de todo)
     # ══════════════════════════════════════════
     sec("💰", "Analisis de Ventas")
@@ -1761,6 +1836,22 @@ def render_onboarding_wizard(kpi_year, selected_month):
         with gc5:
             wiz_empleados = st.number_input("Empleados", min_value=1, value=10, key="wiz_empleados")
 
+        st.markdown("---")
+
+        # ── Operación ──
+        st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:{TEXT_PRIMARY};">📅 Operacion del local</div>', unsafe_allow_html=True)
+        wiz_dias_cierre = st.number_input(
+            "Dias de cierre por semana", min_value=0, max_value=6, value=0, key="wiz_dias_cierre")
+        st.markdown(f'<div class="wizard-tip">Dias por semana que el local no opera (ej: 1 si cierra los lunes)</div>', unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # ── Meta del mes ──
+        st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:{TEXT_PRIMARY};">🎯 Metas del mes</div>', unsafe_allow_html=True)
+        wiz_presupuesto = st.number_input(
+            "Presupuesto de venta neta mensual (CLP)", min_value=0, step=1000000, value=0, key="wiz_presupuesto")
+        st.markdown(f'<div class="wizard-tip">Meta de venta neta para el mes en curso</div>', unsafe_allow_html=True)
+
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
         col1, col2 = st.columns(2)
@@ -1774,7 +1865,10 @@ def render_onboarding_wizard(kpi_year, selected_month):
             "sueldos": wiz_sueldos, "arriendo_uf": wiz_arriendo,
             "servicios": wiz_servicios, "otros": wiz_otros,
         })
-        _save_restaurant_defaults({"horas_op": wiz_horas, "m2": wiz_m2, "num_empleados": wiz_empleados})
+        _save_restaurant_defaults({
+            "horas_op": wiz_horas, "m2": wiz_m2, "num_empleados": wiz_empleados,
+            "dias_cierre_semana": wiz_dias_cierre, "presupuesto_venta_neta_mensual": wiz_presupuesto,
+        })
         st.session_state.onboarding_done = True
         st.balloons()
         st.rerun()
@@ -1881,6 +1975,14 @@ def render_kpis(client=None, local_key="default", local_name=None):
             num_empleados = st.number_input("Num. empleados", min_value=1, step=1,
                                             value=defaults.get("num_empleados", 10), key="input_empleados")
 
+        gc8, gc9 = st.columns(2)
+        with gc8:
+            dias_cierre_semana = st.number_input("Dias cierre/semana", min_value=0, max_value=6, step=1,
+                                                  value=defaults.get("dias_cierre_semana", 0), key="input_dias_cierre")
+        with gc9:
+            presupuesto_mensual = st.number_input("Presupuesto venta mensual (CLP)", min_value=0, step=1000000,
+                                                   value=defaults.get("presupuesto_venta_neta_mensual", 0), key="input_presupuesto")
+
     # Variables sin expander
     if not month_expenses:
         sueldos = month_expenses.get("sueldos", 0)
@@ -1898,7 +2000,11 @@ def render_kpis(client=None, local_key="default", local_name=None):
         _save_month_expenses(kpi_year, selected_month, new_month_expenses)
 
     # Guardar automaticamente defaults si cambiaron
-    new_defaults = {"horas_op": horas_op, "m2": m2, "num_empleados": num_empleados}
+    new_defaults = {
+        "horas_op": horas_op, "m2": m2, "num_empleados": num_empleados,
+        "dias_cierre_semana": dias_cierre_semana,
+        "presupuesto_venta_neta_mensual": presupuesto_mensual,
+    }
     if new_defaults != defaults:
         _save_restaurant_defaults(new_defaults)
 
