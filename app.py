@@ -1767,7 +1767,7 @@ def render_onboarding_wizard(kpi_year, selected_month):
         with col1:
             submitted = st.form_submit_button("🚀 Ver mis KPIs", use_container_width=True, type="primary")
         with col2:
-            skipped = st.form_submit_button("Saltar por ahora", use_container_width=True, config={"staticPlot": True})
+            skipped = st.form_submit_button("Saltar por ahora", use_container_width=True)
 
     if submitted:
         _save_month_expenses(kpi_year, selected_month, {
