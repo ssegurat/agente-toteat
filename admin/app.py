@@ -2,12 +2,15 @@ import os
 import sys
 import uuid
 import hashlib
+from io import BytesIO
 from datetime import datetime, date, timedelta
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from supabase_client import get_supabase
 
@@ -337,6 +340,73 @@ def generate_token():
     return hashlib.sha256(uuid.uuid4().hex.encode()).hexdigest()[:32]
 
 
+@st.cache_data
+def gen_template_empresas():
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Empresas"
+    hdr_fill = PatternFill(start_color="1a1a1a", end_color="1a1a1a", fill_type="solid")
+    hdr_font = Font(color="FFFFFF", bold=True, size=11)
+    border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+    for col, h in enumerate(["Nombre", "Pais", "ID Fiscal", "Email", "Telefono", "Plan", "Notas"], 1):
+        c = ws.cell(row=1, column=col, value=h)
+        c.font, c.fill, c.alignment, c.border = hdr_font, hdr_fill, Alignment(horizontal="center"), border
+    examples = [
+        ["Tanaka Spa", "CL", "76.453.462-K", "contacto@tanaka.cl", "+56912345678", "trial", "Cadena de sushi"],
+        ["La Parrilla Argentina", "AR", "30-12345678-9", "info@laparrilla.com.ar", "+5491155556666", "trial", ""],
+        ["Cevicheria Lima", "PE", "20123456789", "admin@cevicheria.pe", "+51999888777", "trial", ""],
+        ["Restaurante Bogota", "CO", "900.123.456-7", "hola@restbogota.co", "+573001234567", "trial", ""],
+        ["Soda Tica", "CR", "3-101-123456", "info@sodatica.cr", "+50688887777", "trial", ""],
+        ["Tacos CDMX", "MX", "TAC200101AB1", "contacto@tacoscdmx.mx", "+5215512345678", "trial", ""],
+    ]
+    for ri, row in enumerate(examples, 2):
+        for ci, v in enumerate(row, 1):
+            c = ws.cell(row=ri, column=ci, value=v)
+            c.border, c.font = border, Font(color="888888", italic=True)
+    for i, w in enumerate([30, 8, 20, 30, 18, 15, 25], 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+    ws.cell(row=9, column=1, value="* Campos requeridos: Nombre, Pais, Email").font = Font(bold=True, color="ff4235")
+    ws.cell(row=10, column=1, value="* Paises validos: CL, AR, PE, CO, CR, MX").font = Font(color="666666")
+    ws.cell(row=11, column=1, value="* Planes: trial, starter, professional, enterprise").font = Font(color="666666")
+    ws.cell(row=12, column=1, value="* Borra las filas de ejemplo antes de completar").font = Font(color="666666")
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+@st.cache_data
+def gen_template_restaurantes():
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Restaurantes"
+    hdr_fill = PatternFill(start_color="1a1a1a", end_color="1a1a1a", fill_type="solid")
+    hdr_font = Font(color="FFFFFF", bold=True, size=11)
+    border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+    headers = ["Nombre Empresa", "Nombre Local", "Slug", "API Token", "Restaurant ID", "Local ID",
+               "User ID", "Base URL", "Sueldos", "Arriendo UF", "Servicios", "Otros", "Horas Op", "M2", "Num Empleados"]
+    for col, h in enumerate(headers, 1):
+        c = ws.cell(row=1, column=col, value=h)
+        c.font, c.fill, c.alignment, c.border = hdr_font, hdr_fill, Alignment(horizontal="center"), border
+    examples = [
+        ["Tanaka Spa", "Tanaka Vitacura", "tanaka-vitacura", "abc123token", "R001", "1", "U001",
+         "https://api.toteat.com/mw/or/1.0/", 5000000, 45.5, 800000, 200000, 14, 120, 15],
+        ["La Parrilla Argentina", "Parrilla Palermo", "parrilla-palermo", "ghi789token", "R003", "1", "U002",
+         "https://api.toteat.com/mw/or/1.0/", 3000000, 0, 500000, 100000, 10, 80, 8],
+    ]
+    for ri, row in enumerate(examples, 2):
+        for ci, v in enumerate(row, 1):
+            c = ws.cell(row=ri, column=ci, value=v)
+            c.border, c.font = border, Font(color="888888", italic=True)
+    for i, w in enumerate([25, 22, 20, 15, 15, 10, 10, 40, 12, 12, 12, 12, 10, 8, 14], 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+    ws.cell(row=5, column=1, value="* Campos requeridos: Nombre Empresa, Nombre Local").font = Font(bold=True, color="ff4235")
+    ws.cell(row=6, column=1, value="* El Nombre Empresa debe coincidir exactamente con el nombre en el sistema").font = Font(color="666666")
+    ws.cell(row=7, column=1, value="* Borra las filas de ejemplo antes de completar").font = Font(color="666666")
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 def safe_query(query_func):
     """Ejecuta una query de Supabase con manejo de errores."""
     try:
@@ -495,20 +565,15 @@ with tab_empresas:
     with st.expander("📥 Importar Empresas desde Excel", expanded=False):
         imp_c1, imp_c2 = st.columns([2, 1])
         with imp_c2:
-            # Boton descargar plantilla
-            try:
-                with open("admin/templates/plantilla_empresas.xlsx", "rb") as f:
-                    st.download_button("📄 Descargar Plantilla", f, file_name="plantilla_empresas.xlsx",
-                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                       use_container_width=True)
-            except FileNotFoundError:
-                st.caption("Plantilla no disponible")
+            st.download_button("📄 Descargar Plantilla", gen_template_empresas(),
+                               file_name="plantilla_empresas.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                               use_container_width=True)
         with imp_c1:
             uploaded_companies = st.file_uploader("Sube el Excel con empresas", type=["xlsx"], key="upload_companies")
 
         if uploaded_companies:
             try:
-                import openpyxl
                 df_import = pd.read_excel(uploaded_companies, engine="openpyxl")
                 required_cols = {"Nombre", "Pais", "Email"}
                 if not required_cols.issubset(set(df_import.columns)):
@@ -757,19 +822,15 @@ with tab_restaurants:
         with st.expander("📥 Importar Locales desde Excel", expanded=False):
             imp_r1, imp_r2 = st.columns([2, 1])
             with imp_r2:
-                try:
-                    with open("admin/templates/plantilla_restaurantes.xlsx", "rb") as f:
-                        st.download_button("📄 Descargar Plantilla", f, file_name="plantilla_restaurantes.xlsx",
-                                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                           use_container_width=True, key="dl_rest_template")
-                except FileNotFoundError:
-                    st.caption("Plantilla no disponible")
+                st.download_button("📄 Descargar Plantilla", gen_template_restaurantes(),
+                                   file_name="plantilla_restaurantes.xlsx",
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                   use_container_width=True, key="dl_rest_template")
             with imp_r1:
                 uploaded_rests = st.file_uploader("Sube el Excel con locales", type=["xlsx"], key="upload_restaurants")
 
             if uploaded_rests:
                 try:
-                    import openpyxl
                     df_rest_import = pd.read_excel(uploaded_rests, engine="openpyxl")
                     required_cols = {"Nombre Empresa", "Nombre Local"}
                     if not required_cols.issubset(set(df_rest_import.columns)):
