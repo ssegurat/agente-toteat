@@ -730,22 +730,41 @@ def _cached_or_fetch(key, fn, ttl=300):
 
 
 def preload_dashboard_data(client, sf, st2, local_key="default"):
-    """Carga TODOS los datos del dashboard en paralelo usando cache manual."""
+    """Carga TODOS los datos del dashboard en paralelo.
+    Usa st.cache_data cuando hay datos cacheados, API directa cuando no."""
     sf_str, st2_str = sf.isoformat(), st2.isoformat()
 
-    def make_task(key, fn, ttl=300):
-        return lambda: _cached_or_fetch(f"{key}_{local_key}_{sf_str}_{st2_str}", fn, ttl)
+    # Primero intentar st.cache_data (instantáneo si cacheado)
+    results = {}
+    pending = {}
 
-    tasks = {
-        "shift": lambda: _cached_or_fetch(f"shift_{local_key}", lambda: cached_get_shift(client, local_key=local_key), 60),
-        "tables": lambda: _cached_or_fetch(f"tables_{local_key}", lambda: cached_get_tables(client, local_key=local_key), 60),
-        "fiscal": make_task("fiscal", lambda: _chunked_api_call(client.get_fiscal_documents, sf_str, st2_str)),
-        "products": lambda: _cached_or_fetch(f"products_{local_key}", lambda: client.get_products(), 3600),
-        "collection": lambda: _cached_or_fetch(f"collection_{local_key}_{sf_str}", lambda: client.get_collection(sf_str), 120),
-        "inventory": make_task("inventory", lambda: client.get_inventory_state(sf_str, st2_str)),
-        "accounting": make_task("accounting", lambda: client.get_accounting_movements(sf_str, st2_str)),
+    # Funciones cacheadas de Streamlit y sus keys
+    cache_calls = {
+        "shift": lambda: cached_get_shift(client, local_key=local_key),
+        "tables": lambda: cached_get_tables(client, local_key=local_key),
+        "fiscal": lambda: cached_get_fiscal_docs(client, sf_str, st2_str, local_key=local_key),
+        "products": lambda: cached_get_products(client, local_key=local_key),
+        "collection": lambda: cached_get_collection(client, sf_str, local_key=local_key),
+        "inventory": lambda: cached_get_inventory(client, sf_str, st2_str, local_key=local_key),
+        "accounting": lambda: cached_get_accounting(client, sf_str, st2_str, local_key=local_key),
     }
-    return parallel_load(tasks)
+
+    # Intentar leer de cache de Streamlit primero (es instantáneo)
+    for key, fn in cache_calls.items():
+        try:
+            results[key] = fn()
+        except Exception:
+            # Cache miss o error — marcar para carga paralela
+            pending[key] = fn
+
+    # Si hay pendientes, cargarlos en paralelo
+    if pending:
+        parallel_results = parallel_load({
+            k: (lambda f=f: f()) for k, f in pending.items()
+        })
+        results.update(parallel_results)
+
+    return results
 
 
 # ── Procesamiento de ventas ──
