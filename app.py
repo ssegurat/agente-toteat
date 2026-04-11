@@ -897,80 +897,6 @@ def render_dashboard(client=None, local_key="default", local_name=None):
         st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:#ff4235;margin-bottom:8px;">{local_name}</div>', unsafe_allow_html=True)
 
     # ══════════════════════════════════════════
-    # PRONÓSTICO DEL MES (nuevo bloque)
-    # ══════════════════════════════════════════
-    try:
-        import calendar as _cal
-        defaults_dash = _load_restaurant_defaults()
-        dias_cierre = defaults_dash.get("dias_cierre_semana", 0)
-        presupuesto = defaults_dash.get("presupuesto_venta_neta_mensual", 0)
-        first_of_current_month = date(today.year, today.month, 1)
-        last_day_current = _cal.monthrange(today.year, today.month)[1]
-        end_of_current_month = date(today.year, today.month, last_day_current)
-
-        # Cargar ventas del mes en curso
-        raw_month = cached_get_sales(client, first_of_current_month.isoformat(), today.isoformat(), local_key=local_key)
-        month_data = raw_month.get("data", [])
-        venta_mes = sum(o.get("total", 0) for o in month_data) if month_data else 0
-
-        pron = calcular_pronostico_mensual(
-            venta_acumulada=venta_mes,
-            fecha_desde=first_of_current_month.isoformat(),
-            fecha_hasta=today.isoformat(),
-            dias_cierre_semana=dias_cierre,
-            presupuesto_mensual=presupuesto,
-        )
-
-        sec("📈", "Pronostico del Mes")
-
-        if pron:
-            pc1, pc2, pc3 = st.columns(3)
-            with pc1:
-                st.markdown(kpi("📈", "Pronostico Mes", fmt(pron["pronostico_mes"]),
-                                f"Basado en {pron['dias_operados']} dias operados"), unsafe_allow_html=True)
-            with pc2:
-                if presupuesto > 0:
-                    st.markdown(kpi("🎯", "Presupuesto Mes", fmt(presupuesto),
-                                    "Meta mensual ingresada"), unsafe_allow_html=True)
-                else:
-                    st.markdown(kpi("🎯", "Presupuesto Mes", "—",
-                                    "Sin meta definida"), unsafe_allow_html=True)
-            with pc3:
-                if pron["vs_presupuesto_pct"] is not None:
-                    pct = pron["vs_presupuesto_pct"]
-                    monto = pron["vs_presupuesto_monto"]
-                    if pct >= 100:
-                        color = "normal"
-                        sub_text = f"▲ +{fmt(monto)} sobre presupuesto"
-                    elif pct >= 90:
-                        color = "warn"
-                        sub_text = f"▼ {fmt(abs(monto))} bajo presupuesto"
-                    else:
-                        color = "red"
-                        sub_text = f"▼ {fmt(abs(monto))} bajo presupuesto"
-                    st.markdown(kpi("⚡", "Avance vs Pres.", fmt_pct(pct), sub_text, color), unsafe_allow_html=True)
-                else:
-                    st.markdown(kpi("⚡", "Avance vs Pres.", "—",
-                                    "Sin meta definida"), unsafe_allow_html=True)
-
-            # Barra de progreso
-            avance = pron["porcentaje_avance_mes"]
-            bar_pct = min(avance, 100)
-            st.markdown(f"""<div style="margin:12px 0 4px 0;font-size:0.78rem;font-weight:700;color:{TEXT_PRIMARY};">
-                {pron['dias_operados']} de {pron['dias_operables_mes']} dias operables transcurridos ({avance}%)
-            </div>
-            <div style="background:{BORDER};border-radius:6px;height:10px;overflow:hidden;">
-                <div style="background:{TOTEAT_RED};width:{bar_pct}%;height:100%;border-radius:6px;transition:width 0.5s;"></div>
-            </div>""", unsafe_allow_html=True)
-
-            st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
-        elif venta_mes == 0:
-            sec("📈", "Pronostico del Mes")
-            st.info("Sin ventas registradas en el mes actual.")
-    except Exception:
-        pass  # No bloquear el dashboard si el pronóstico falla
-
-    # ══════════════════════════════════════════
     # VENTAS (arriba de todo)
     # ══════════════════════════════════════════
     sec("💰", "Analisis de Ventas")
@@ -1044,6 +970,42 @@ def render_dashboard(client=None, local_key="default", local_name=None):
             d_margin = calc_delta(s["margin"], prev["margin"]) if prev else None
             d_tips = calc_delta(s["total_gratuity"], prev["total_gratuity"]) if prev else None
             a_tips = (s["total_gratuity"] - prev["total_gratuity"]) if prev else None
+
+            # ── Pronóstico del mes (reutiliza ventas cargadas, sin API extra) ──
+            try:
+                _defs = _load_restaurant_defaults()
+                _dc = _defs.get("dias_cierre_semana", 0)
+                _pres = _defs.get("presupuesto_venta_neta_mensual", 0)
+                # Solo mostrar si el filtro cubre desde el 1ro del mes actual
+                if sf == date(today.year, today.month, 1) and st2.month == today.month and st2.year == today.year:
+                    _pron = calcular_pronostico_mensual(s["total_sales"], sf.isoformat(), st2.isoformat(), _dc, _pres)
+                    if _pron:
+                        sec("📈", "Pronostico del Mes")
+                        _pc1, _pc2, _pc3 = st.columns(3)
+                        with _pc1:
+                            st.markdown(kpi("📈", "Pronostico Mes", fmt(_pron["pronostico_mes"]),
+                                            f"Basado en {_pron['dias_operados']} dias operados"), unsafe_allow_html=True)
+                        with _pc2:
+                            st.markdown(kpi("🎯", "Presupuesto Mes", fmt(_pres) if _pres > 0 else "—",
+                                            "Meta mensual" if _pres > 0 else "Sin meta definida"), unsafe_allow_html=True)
+                        with _pc3:
+                            if _pron["vs_presupuesto_pct"] is not None:
+                                _pp = _pron["vs_presupuesto_pct"]
+                                _pm = _pron["vs_presupuesto_monto"]
+                                _col = "normal" if _pp >= 100 else ("warn" if _pp >= 90 else "red")
+                                _stxt = f"{'▲ +' if _pm >= 0 else '▼ '}{fmt(abs(_pm))} {'sobre' if _pm >= 0 else 'bajo'} meta"
+                                st.markdown(kpi("⚡", "Avance vs Meta", fmt_pct(_pp), _stxt, _col), unsafe_allow_html=True)
+                            else:
+                                st.markdown(kpi("⚡", "Avance vs Meta", "—", "Sin meta definida"), unsafe_allow_html=True)
+                        _av = _pron["porcentaje_avance_mes"]
+                        st.markdown(f"""<div style="margin:12px 0 4px;font-size:0.78rem;font-weight:700;color:{TEXT_PRIMARY};">
+                            {_pron['dias_operados']} de {_pron['dias_operables_mes']} dias operables ({_av}%)
+                        </div><div style="background:{BORDER};border-radius:6px;height:10px;overflow:hidden;">
+                            <div style="background:{TOTEAT_RED};width:{min(_av,100)}%;height:100%;border-radius:6px;"></div>
+                        </div>""", unsafe_allow_html=True)
+                        st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+            except Exception:
+                pass
 
             if prev_label:
                 st.markdown(f"<div style='font-size:0.78rem;color:#6b7280;margin-bottom:8px;font-weight:600;'>Comparando {prev_label}</div>", unsafe_allow_html=True)
