@@ -1,8 +1,8 @@
-# Toteat Intelligence
+# Toteat AI
 
 **Dashboard inteligente para restaurantes que usan Toteat como sistema POS.**
 
-Toteat Intelligence transforma los datos de tu restaurante en decisiones accionables. Visualiza ventas en tiempo real, monitorea KPIs gastronomicos criticos, compara periodos y conversa con una IA que entiende tu negocio.
+Toteat AI transforma los datos de tu restaurante en decisiones accionables. Visualiza ventas en tiempo real, monitorea KPIs gastronomicos criticos, compara periodos y conversa con una IA que entiende tu negocio.
 
 [Screenshots proximamente]
 
@@ -260,7 +260,7 @@ El modulo de administracion y facturacion usa **Supabase** (PostgreSQL) como bac
 
 | Dato | Valor |
 |------|-------|
-| Proyecto | Toteat Intelligence |
+| Proyecto | Toteat AI |
 | Region | South America (Sao Paulo) |
 | Plan | Free (500MB, suficiente para miles de usuarios) |
 | Dashboard | https://supabase.com/dashboard/project/kdeirfyatgmnxwzccrqi |

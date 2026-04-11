@@ -1,4 +1,4 @@
-# Documentacion Tecnica — Toteat Intelligence
+# Documentacion Tecnica — Toteat AI
 
 ---
 

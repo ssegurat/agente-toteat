@@ -1,5 +1,5 @@
 -- ==============================================
--- Toteat Intelligence - Database Schema
+-- Toteat AI - Database Schema
 -- Ejecutar en Supabase SQL Editor
 -- ==============================================
 

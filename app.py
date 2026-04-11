@@ -19,7 +19,7 @@ load_dotenv()
 # ──────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="Toteat Intelligence",
+    page_title="Toteat AI",
     page_icon="https://toteat.com/favicon.ico",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -48,8 +48,8 @@ WARNING_BG = "#fffbeb"
 DANGER = "#ef4444"
 DANGER_BG = "#fef2f2"
 
-TOTEAT_LOGO_SVG = """<svg width="120" height="28" viewBox="0 0 120 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-<text x="0" y="22" font-family="Inter, sans-serif" font-size="22" font-weight="800" fill="#1a1a1a">tot<tspan fill="#ff4235">eat</tspan></text>
+TOTEAT_LOGO_SVG = """<svg width="160" height="28" viewBox="0 0 160 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="22" font-family="Inter, sans-serif" font-size="22" font-weight="800" fill="#1a1a1a">tot<tspan fill="#ff4235">eat</tspan> <tspan fill="#ff4235">AI</tspan></text>
 </svg>"""
 
 CUSTOM_CSS = f"""
@@ -889,7 +889,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
         <div class="toteat-brand">
             <div class="toteat-logo-icon">t</div>
             <div>
-                <div class="toteat-title">tot<span>eat</span> Intelligence</div>
+                <div class="toteat-title">tot<span>eat</span> <span>AI</span></div>
                 <div class="toteat-subtitle">Panel de control de tu restaurante</div>
             </div>
         </div>
@@ -3201,7 +3201,7 @@ def main():
             st.markdown(f'''<div class="toteat-brand" style="padding:8px 0;">
                 <div class="toteat-logo-icon">t</div>
                 <div>
-                    <div class="toteat-title">tot<span>eat</span> Intelligence</div>
+                    <div class="toteat-title">tot<span>eat</span> <span>AI</span></div>
                     <div class="toteat-subtitle">Panel multi-sucursal</div>
                 </div>
             </div>''', unsafe_allow_html=True)
