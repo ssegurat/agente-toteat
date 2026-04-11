@@ -1109,11 +1109,11 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                 fig = go.Figure(go.Bar(
                     x=df_prod["Producto"], y=df_prod["Venta"],
                     marker=dict(color=df_prod["Venta"], colorscale=COLOR_SCALE, cornerradius=4),
-                    text=df_prod["Cantidad"].apply(lambda x: f"{x} unidades"),
+                    text=df_prod["Cantidad"].apply(lambda x: f"{x} uds"),
                     textposition="outside", textfont=dict(color="#374151", size=11),
                     hovertemplate="<b>%{x}</b><br>$%{y:,.0f}<extra></extra>",
                 ))
-                fig.update_layout(height=340, **PLOTLY_LAYOUT, xaxis_tickangle=-45)
+                fig.update_layout(title="Top 15 por Venta", height=340, **PLOTLY_LAYOUT, xaxis_tickangle=-45)
                 st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
                 with st.expander("Ver tabla de productos con margen"):
@@ -2140,7 +2140,10 @@ def render_kpis(client=None, local_key="default", local_name=None):
                 text=[fmt(abs(v)) for v in cat_values],
                 textfont=dict(size=10, color=TEXT_SECONDARY),
             ))
-            fig.update_layout(title="Cascada de Resultado Operacional", height=300, **PLOTLY_LAYOUT)
+            fig.update_layout(
+                title="Cascada de Resultado Operacional", height=300, **PLOTLY_LAYOUT,
+                yaxis=dict(tickformat=",.0f", tickprefix="$"),
+            )
             st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
     # ══════════════════════════════════════════
@@ -2470,11 +2473,11 @@ def render_consolidated_dashboard(clients, locals_config, allowed_locals):
                 fig = go.Figure(go.Bar(
                     x=df_prod["Producto"], y=df_prod["Venta"],
                     marker=dict(color=df_prod["Venta"], colorscale=COLOR_SCALE, cornerradius=4),
-                    text=df_prod["Cantidad"].apply(lambda x: f"{x} unidades"),
+                    text=df_prod["Cantidad"].apply(lambda x: f"{x} uds"),
                     textposition="outside", textfont=dict(color="#374151", size=11),
                     hovertemplate="<b>%{x}</b><br>$%{y:,.0f}<extra></extra>",
                 ))
-                fig.update_layout(height=340, **PLOTLY_LAYOUT, xaxis_tickangle=-45)
+                fig.update_layout(title="Top 15 por Venta", height=340, **PLOTLY_LAYOUT, xaxis_tickangle=-45)
                 st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
                 with st.expander("Ver tabla de productos con margen"):
@@ -2881,7 +2884,10 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
                 text=[fmt(abs(v)) for v in cat_values],
                 textfont=dict(size=10, color=TEXT_SECONDARY),
             ))
-            fig.update_layout(title="Cascada de Resultado (Red)", height=300, **PLOTLY_LAYOUT)
+            fig.update_layout(
+                title="Cascada de Resultado (Red)", height=300, **PLOTLY_LAYOUT,
+                yaxis=dict(tickformat=",.0f", tickprefix="$"),
+            )
             st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
 
     # ══════════════════════════════════════════
