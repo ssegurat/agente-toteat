@@ -2017,6 +2017,8 @@ def render_kpis(client=None, local_key="default", local_name=None):
     # ══════════════════════════════════════════
 
     # Financieros (módulo con cálculo dual real/proyectado)
+    # Para mes en curso: usar fecha real (hoy), no fin de mes
+    _kf_hasta = min(end_of_month, date.today()) if is_current_month else end_of_month
     kf = calcular_kpis_financieros(
         venta_acumulada=total_ventas,
         costo_alimentos_acumulado=total_cost,
@@ -2025,7 +2027,7 @@ def render_kpis(client=None, local_key="default", local_name=None):
         servicios_mensual=servicios,
         otros_gastos_mensual=otros,
         fecha_desde=first_of_month.isoformat(),
-        fecha_hasta=end_of_month.isoformat(),
+        fecha_hasta=_kf_hasta.isoformat(),
         dias_cierre_semana=defaults.get("dias_cierre_semana", 0),
     )
     _kf_ok = not kf.get("sin_ventas", True)
