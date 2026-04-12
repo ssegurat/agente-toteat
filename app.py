@@ -29,39 +29,36 @@ st.set_page_config(
 # TOTEAT BRAND PALETTE (Light Mode)
 # ──────────────────────────────────────────────
 
-TOTEAT_RED = "#E8553D"
-TOTEAT_RED_HOVER = "#F4A99E"
-TOTEAT_RED_LIGHT = "#fef2f0"
-TOTEAT_RED_BG = "#E8553D0d"
-BG_PAGE = "#f5f3ef"
+TOTEAT_RED = "#ff4235"
+TOTEAT_RED_HOVER = "#ffa099"
+TOTEAT_RED_LIGHT = "#fff1f0"
+TOTEAT_RED_BG = "#ff42350d"
+BG_PAGE = "#f7f8fa"
 BG_CARD = "#ffffff"
-BG_SIDEBAR = "#1f2937"
-TEXT_PRIMARY = "#1f2937"
+BG_SIDEBAR = "#1a1a1a"
+TEXT_PRIMARY = "#1a1a1a"
 TEXT_SECONDARY = "#6b7280"
 TEXT_MUTED = "#9ca3af"
-BORDER = "#e8e4dd"
-BORDER_LIGHT = "#f0ece6"
-SUCCESS = "#2E9E5E"
+BORDER = "#e5e7eb"
+BORDER_LIGHT = "#f3f4f6"
+SUCCESS = "#22c55e"
 SUCCESS_BG = "#f0fdf4"
-WARNING = "#E09A0C"
+WARNING = "#f59e0b"
 WARNING_BG = "#fffbeb"
 DANGER = "#ef4444"
 DANGER_BG = "#fef2f2"
-ACCENT = TOTEAT_RED
-ACCENT_LIGHT = "#F4A99E"
-ACCENT_DARK = "#c44433"
 
 TOTEAT_LOGO_SVG = """<svg width="160" height="28" viewBox="0 0 160 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-<text x="0" y="22" font-family="Space Grotesk, sans-serif" font-size="22" font-weight="700" fill="#1f2937">tot<tspan fill="#E8553D">eat</tspan> <tspan fill="#E8553D">AI</tspan></text>
+<text x="0" y="22" font-family="Inter, sans-serif" font-size="22" font-weight="800" fill="#1a1a1a">tot<tspan fill="#ff4235">eat</tspan> <tspan fill="#ff4235">AI</tspan></text>
 </svg>"""
 
 CUSTOM_CSS = f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* Global */
 .stApp {{
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Nunito Sans', 'Inter', sans-serif;
     background-color: {BG_PAGE};
 }}
 .block-container {{
@@ -78,13 +75,11 @@ CUSTOM_CSS = f"""
     padding: 16px 20px;
     border: 1px solid {BORDER};
     min-height: 90px;
-    box-shadow: 0 1px 3px rgba(31,41,55,0.04);
-    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }}
 .kpi-icon {{ font-size: 1.3rem; margin-bottom: 2px; }}
 .kpi-label {{
-    font-size: 0.62rem;
-    font-family: 'DM Sans', sans-serif;
+    font-size: 0.68rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -92,7 +87,6 @@ CUSTOM_CSS = f"""
     margin-bottom: 2px;
 }}
 .kpi-val {{
-    font-family: 'Space Grotesk', sans-serif;
     font-size: 1.6rem;
     font-weight: 800;
     color: {TEXT_PRIMARY};
@@ -126,19 +120,15 @@ CUSTOM_CSS = f"""
 
 /* Section header */
 .sec {{
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: {TEXT_PRIMARY};
+    margin: 28px 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid {TOTEAT_RED};
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 28px 0 16px 0;
-    padding: 0;
-    border-bottom: none;
-}}
-.sec h2, .sec span {{
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: {TEXT_PRIMARY};
-    margin: 0;
 }}
 
 /* Header */
@@ -168,9 +158,8 @@ CUSTOM_CSS = f"""
     font-size: 16px;
 }}
 .toteat-title {{
-    font-family: 'Space Grotesk', sans-serif;
     font-size: 1.25rem;
-    font-weight: 700;
+    font-weight: 800;
     color: {TEXT_PRIMARY};
 }}
 .toteat-title span {{
@@ -188,22 +177,22 @@ CUSTOM_CSS = f"""
 }}
 
 /* Tabs - Toteat style */
-[data-testid="stTabs"] > div:first-child {{
-    overflow-x: auto;
-    flex-wrap: nowrap !important;
-    -webkit-overflow-scrolling: touch;
-    background: rgba(0,0,0,0.03);
-    border-radius: 12px;
-    padding: 4px;
+.stTabs [data-baseweb="tab-list"] {{
+    gap: 0;
+    background: {BG_CARD};
+    border-radius: 10px;
+    padding: 3px;
+    border: 1px solid {BORDER};
 }}
-[data-testid="stTabs"] button {{
-    white-space: nowrap;
-    min-width: fit-content;
+.stTabs [data-baseweb="tab"] {{
     border-radius: 8px;
-    font-weight: 500;
+    padding: 8px 20px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: {TEXT_SECONDARY};
 }}
-[data-testid="stTabs"] button[aria-selected="true"] {{
-    background: {TEXT_PRIMARY} !important;
+.stTabs [aria-selected="true"] {{
+    background: {TEXT_PRIMARY};
     color: white !important;
 }}
 
@@ -216,7 +205,6 @@ CUSTOM_CSS = f"""
     border-radius: 8px;
     padding: 6px 20px;
     font-size: 0.82rem;
-    white-space: nowrap;
     transition: all 0.2s;
 }}
 .stButton > button:hover {{
@@ -246,11 +234,6 @@ section[data-testid="stSidebar"] {{
 .streamlit-expanderHeader {{
     font-weight: 700;
     font-size: 0.85rem;
-}}
-[data-testid="stExpander"] {{
-    border: 2px solid rgba(232,85,61,0.3);
-    border-radius: 12px;
-    background: rgba(232,85,61,0.03);
 }}
 
 /* Plotly container */
@@ -332,26 +315,6 @@ section[data-testid="stSidebar"] {{
     margin-bottom: 8px;
 }}
 
-/* Badge variants */
-.badge-positive {{
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 0.72rem; font-weight: 600; padding: 2px 8px;
-    border-radius: 20px; background: #f0fdf4; color: {SUCCESS};
-}}
-.badge-negative {{
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 0.72rem; font-weight: 600; padding: 2px 8px;
-    border-radius: 20px; background: #fef2f2; color: {DANGER};
-}}
-.badge-record {{
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 0.72rem; font-weight: 500; padding: 2px 8px;
-    border-radius: 20px; background: rgba(224,154,12,0.1); color: {WARNING};
-}}
-
-/* Headings */
-h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif !important; }}
-
 /* ═══ MOBILE RESPONSIVE ═══ */
 @media (max-width: 768px) {{
     .block-container {{
@@ -401,18 +364,18 @@ Presenta los datos de forma clara con tablas cuando sea apropiado.
 """
 
 PLOTLY_LAYOUT = dict(
-    paper_bgcolor="white",
-    plot_bgcolor="white",
-    font=dict(family="DM Sans, sans-serif", color="#1f2937", size=11),
-    margin=dict(l=40, r=20, t=40, b=30),
-    xaxis=dict(gridcolor="#e8e4dd", zeroline=False, tickfont=dict(color="#6b7280", size=10)),
-    yaxis=dict(gridcolor="#e8e4dd", zeroline=False, tickfont=dict(color="#6b7280", size=10)),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="Nunito Sans, Inter, sans-serif", color="#1a1a1a", size=12),
+    margin=dict(l=16, r=16, t=40, b=16),
+    xaxis=dict(gridcolor=BORDER, zeroline=False, tickfont=dict(color="#374151", size=11)),
+    yaxis=dict(gridcolor=BORDER, zeroline=False, tickfont=dict(color="#374151", size=11)),
     bargap=0.3,
-    title_font=dict(family="Space Grotesk, sans-serif", color="#1f2937", size=14),
+    title_font=dict(color="#1a1a1a", size=14),
 )
 
-CHART_COLORS = [TOTEAT_RED, ACCENT_LIGHT, "#1f2937", "#6b7280", SUCCESS, WARNING, "#8b5cf6", "#06b6d4"]
-COLOR_SCALE = [[0, "#F4A99E"], [0.5, "#E8553D"], [1, "#c44433"]]
+CHART_COLORS = [TOTEAT_RED, "#ff6b61", "#ffa099", "#ffccc8", "#1a1a1a", "#6b7280", "#22c55e", "#f59e0b"]
+COLOR_SCALE = [[0, "#ffccc8"], [0.5, TOTEAT_RED], [1, "#c41e12"]]
 
 
 # ── Helpers ──
@@ -439,41 +402,31 @@ def fmt_pct(v):
         return "0%"
 
 def kpi(icon, label, value, sub=None, sub_type="normal", delta=None, delta_abs=None, record=None):
-    # Badge for delta
-    badge_h = ""
+    sc = {"normal": "kpi-sub", "warn": "kpi-sub-warn", "red": "kpi-sub-red"}.get(sub_type, "kpi-sub")
+    sub_h = f'<div class="{sc}">{sub}</div>' if sub else ""
+    delta_h = ""
     if delta is not None:
         try:
             d = float(delta)
             abs_text = ""
             if delta_abs is not None:
                 abs_val = float(delta_abs)
-                abs_text = f" ({fmt(abs(abs_val))})" if abs_val >= 0 else f" (-{fmt(abs(abs_val))})"
+                if abs_val >= 0:
+                    abs_text = f" ({fmt(abs_val)})"
+                else:
+                    abs_text = f" (-{fmt(abs(-abs_val))})"
             if d > 0:
-                badge_h = f'<span class="badge-positive">▲ +{d:.1f}%{abs_text}</span>'
+                delta_h = f'<div style="font-size:0.72rem;font-weight:700;color:{SUCCESS};margin-top:2px;">▲ +{d:.1f}%{abs_text}</div>'
             elif d < 0:
-                badge_h = f'<span class="badge-negative">▼ {d:.1f}%{abs_text}</span>'
+                delta_h = f'<div style="font-size:0.72rem;font-weight:700;color:{DANGER};margin-top:2px;">▼ {d:.1f}%{abs_text}</div>'
             else:
-                badge_h = f'<span style="font-size:0.72rem;color:{TEXT_SECONDARY};">= 0%</span>'
+                delta_h = f'<div style="font-size:0.72rem;font-weight:700;color:#6b7280;margin-top:2px;">= 0%{abs_text}</div>'
         except (ValueError, TypeError):
             pass
-
-    # Sub text
-    sc = {"normal": SUCCESS, "warn": WARNING, "red": DANGER}.get(sub_type, SUCCESS)
-    sub_h = f'<p style="font-size:0.72rem;color:{sc};font-weight:500;margin:2px 0 0;">{sub}</p>' if sub else ""
-
-    # Record badge
-    record_h = f'<span class="badge-record">{record}</span>' if record else ""
-
-    return f'''<div class="kpi">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span style="font-size:1.1rem;">{icon}</span>
-            {badge_h}
-        </div>
-        <p class="kpi-label">{label}</p>
-        <p class="kpi-val">{value}</p>
-        {sub_h}
-        {record_h}
-    </div>'''
+    record_h = ""
+    if record:
+        record_h = f'<div style="font-size:0.66rem;color:#b45309;font-weight:600;margin-top:4px;padding:3px 6px;background:#fffbeb;border-radius:4px;border:1px solid #f59e0b20;display:inline-block;">{record}</div>'
+    return f'<div class="kpi"><div class="kpi-icon">{icon}</div><div class="kpi-label">{label}</div><div class="kpi-val">{value}</div>{delta_h}{sub_h}{record_h}</div>'
 
 
 def calc_delta(current, previous):
@@ -964,21 +917,8 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                 sec("📈", "Pronostico del Mes")
                 _pc1, _pc2, _pc3 = st.columns(3)
                 with _pc1:
-                    st.markdown(f'''
-                    <div style="background:linear-gradient(135deg, #1f2937, #374151);
-                                border-radius:12px;padding:24px;color:white;min-height:120px;">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                            <span style="font-size:0.68rem;font-weight:500;text-transform:uppercase;
-                                          letter-spacing:0.08em;opacity:0.6;">📈 Pronostico Mes</span>
-                        </div>
-                        <p style="font-size:1.8rem;font-family:'Space Grotesk',sans-serif;font-weight:700;margin:8px 0 0;">
-                            {fmt(_pron["pronostico_mes"])}
-                        </p>
-                        <p style="font-size:0.75rem;opacity:0.7;margin-top:8px;">
-                            Basado en {_pron['dias_operados']} dias operados
-                        </p>
-                    </div>
-                    ''', unsafe_allow_html=True)
+                    st.markdown(kpi("📈", "Pronostico Mes", fmt(_pron["pronostico_mes"]),
+                                    f"Basado en {_pron['dias_operados']} dias operados"), unsafe_allow_html=True)
                 with _pc2:
                     st.markdown(kpi("🎯", "Presupuesto Mes", fmt(_pres) if _pres > 0 else "—",
                                     "Meta mensual" if _pres > 0 else "Sin meta definida"), unsafe_allow_html=True)
@@ -1815,38 +1755,6 @@ def _gauge_chart(title, value, suffix, green_range, red_threshold, max_val=100):
     return fig
 
 
-def render_radial_progress(percent, color_name, value_text, size=88):
-    """Renders a SVG radial progress circle. Returns HTML string."""
-    import math
-    radius = (size - 16) / 2
-    circumference = 2 * math.pi * radius
-    # Clamp percent 0-100
-    pct = max(0, min(100, percent))
-    offset = circumference - (pct / 100) * circumference
-
-    colors = {"success": SUCCESS, "warning": WARNING, "accent": TOTEAT_RED, "danger": DANGER}
-    stroke = colors.get(color_name, color_name)
-
-    return f'''
-    <div style="position:relative;width:{size}px;height:{size}px;flex-shrink:0;">
-        <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">
-            <circle cx="{size//2}" cy="{size//2}" r="{radius}" fill="none"
-                    stroke="{BORDER}" stroke-width="7"/>
-            <circle cx="{size//2}" cy="{size//2}" r="{radius}" fill="none"
-                    stroke="{stroke}" stroke-width="7" stroke-linecap="round"
-                    stroke-dasharray="{circumference}" stroke-dashoffset="{offset}"
-                    transform="rotate(-90 {size//2} {size//2})"
-                    style="transition:all 0.7s ease;"/>
-        </svg>
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
-            <span style="font-size:1rem;font-family:'Space Grotesk',sans-serif;font-weight:700;color:{TEXT_PRIMARY};">
-                {value_text}
-            </span>
-        </div>
-    </div>
-    '''
-
-
 def render_onboarding_wizard(kpi_year, selected_month):
     """Wizard de onboarding — formulario unico, un solo rerun al guardar."""
 
@@ -2190,113 +2098,59 @@ def render_kpis(client=None, local_key="default", local_name=None):
             return f"{label_real} · <span style='color:{SUCCESS};font-weight:700;'>Proy. cierre: {fmt(val_proy_monto)}</span>"
         return label_real
 
-    # Radial progress KPIs — Food Cost, Labor Cost, Rent Cost, Prime Cost
+    # Gauges — muestran valor PROYECTADO (correcto) en el gauge, real como referencia
     g1, g2, g3, g4 = st.columns(4)
     with g1:
-        _fc_radial_pct = min(food_cost_pct * 2, 100)  # Scale: 50% gauge = 100% fill
-        _fc_color = "success" if food_cost_pct <= 35 else ("warning" if food_cost_pct <= 40 else "danger")
-        radial = render_radial_progress(_fc_radial_pct, _fc_color, fmt_pct(food_cost_pct))
-        _proy = f'<p style="font-size:0.72rem;color:{TOTEAT_RED};font-weight:500;">Proy. cierre: {fmt_pct(kf["food_cost"]["pct_proyectado"])}</p>' if _mes_abierto and _kf_ok else ""
-        _rec = kpi_record("food_cost_pct", food_cost_pct, higher_is_better=False, is_money=False) or ""
-        _rec_h = f'<span class="badge-record">{_rec}</span>' if _rec else ""
-        st.markdown(f'''<div class="kpi">
-            <div style="display:flex;align-items:flex-start;gap:16px;">
-                {radial}
-                <div style="flex:1;min-width:0;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                        <span style="font-size:1.1rem;">🥩</span>
-                        <span class="kpi-label">FOOD COST</span>
-                    </div>
-                    <p style="font-size:0.75rem;color:{TEXT_SECONDARY};margin:0;">Meta: 28-35% · {fmt(total_cost)}</p>
-                    {_proy}
-                    {_rec_h}
-                </div>
-            </div>
-            <p style="font-size:0.68rem;color:{TEXT_SECONDARY};margin-top:12px;padding-top:12px;border-top:1px solid {BORDER};line-height:1.5;">
-                <b>Costo de alimentos sobre ventas.</b> Mide cuanto de cada $100 que vendes se va en ingredientes.
-            </p>
-        </div>''', unsafe_allow_html=True)
+        fig = _gauge_chart("Food Cost %", round(food_cost_pct, 1), "%",
+                           green_range=(28, 35), red_threshold=40)
+        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
+        fc_color = _kpi_color(food_cost_pct, (28, 35), (22, 40))
+        st.markdown(kpi("🥩", "Food Cost", fmt_pct(food_cost_pct),
+                        f"Meta: 28-35% · {fmt(total_cost)}", fc_color,
+                        record=kpi_record("food_cost_pct", food_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
+        kpi_tip("<b>Costo de alimentos sobre ventas.</b> Mide cuanto de cada $100 que vendes se va en ingredientes.")
 
     with g2:
-        _lc_radial_pct = min(labor_cost_pct * (100 / 35), 100)  # Scale: 35% = 100% fill
-        _lc_color = "success" if labor_cost_pct <= 30 else ("warning" if labor_cost_pct <= 35 else "danger")
-        radial = render_radial_progress(_lc_radial_pct, _lc_color, fmt_pct(labor_cost_pct))
-        _proy = f'<p style="font-size:0.72rem;color:{TOTEAT_RED};font-weight:500;">Proy. cierre: {fmt_pct(kf["labor_cost"]["pct_proyectado"])}</p>' if _mes_abierto and _kf_ok else ""
-        _rec = kpi_record("labor_cost_pct", labor_cost_pct, higher_is_better=False, is_money=False) or ""
-        _rec_h = f'<span class="badge-record">{_rec}</span>' if _rec else ""
+        fig = _gauge_chart("Labor Cost %", round(labor_cost_pct, 1), "%",
+                           green_range=(20, 30), red_threshold=35)
+        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
+        lc_color = _kpi_color(labor_cost_pct, (20, 30), (15, 35))
         if sueldos == 0:
             st.caption("Ingresa sueldos para calcular Labor Cost")
         else:
-            st.markdown(f'''<div class="kpi">
-                <div style="display:flex;align-items:flex-start;gap:16px;">
-                    {radial}
-                    <div style="flex:1;min-width:0;">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                            <span style="font-size:1.1rem;">👨‍🍳</span>
-                            <span class="kpi-label">LABOR COST</span>
-                        </div>
-                        <p style="font-size:0.75rem;color:{TEXT_SECONDARY};margin:0;">Meta: ≤30% · {fmt(sueldos)}</p>
-                        {_proy}
-                        {_rec_h}
-                    </div>
-                </div>
-                <p style="font-size:0.68rem;color:{TEXT_SECONDARY};margin-top:12px;padding-top:12px;border-top:1px solid {BORDER};line-height:1.5;">
-                    <b>Costo de personal sobre ventas.</b> Incluye sueldos, imposiciones y beneficios.
-                </p>
-            </div>''', unsafe_allow_html=True)
+            _lc_sub = _proy_sub(f"Meta: ≤30% · {fmt(sueldos)}", val_proy_pct=kf["labor_cost"]["pct_proyectado"] if _kf_ok else None)
+            st.markdown(kpi("👨‍🍳", "Labor Cost", fmt_pct(labor_cost_pct),
+                            _lc_sub, lc_color,
+                            record=kpi_record("labor_cost_pct", labor_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
+        kpi_tip("<b>Costo de personal sobre ventas.</b> Incluye sueldos, imposiciones y beneficios." + (" <b>Valor proyectado al cierre del mes.</b>" if _mes_abierto else ""))
 
     with g3:
-        _rc_radial_pct = min(rent_cost_pct * (100 / 10), 100)  # Scale: 10% = 100% fill
-        _rc_color = "success" if rent_cost_pct <= 8 else ("warning" if rent_cost_pct <= 10 else "danger")
-        radial = render_radial_progress(_rc_radial_pct, _rc_color, fmt_pct(rent_cost_pct))
-        _proy = f'<p style="font-size:0.72rem;color:{TOTEAT_RED};font-weight:500;">Proy. cierre: {fmt_pct(kf["rent_cost"]["pct_proyectado"])}</p>' if _mes_abierto and _kf_ok else ""
-        _rec = kpi_record("rent_cost_pct", rent_cost_pct, higher_is_better=False, is_money=False) or ""
-        _rec_h = f'<span class="badge-record">{_rec}</span>' if _rec else ""
+        fig = _gauge_chart("Rent Cost %", round(rent_cost_pct, 1), "%",
+                           green_range=(5, 8), red_threshold=10)
+        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
+        rc_color = _kpi_color(rent_cost_pct, (5, 8), (3, 10))
         if arriendo_uf == 0:
             st.caption("Ingresa arriendo para calcular Rent Cost")
         else:
-            st.markdown(f'''<div class="kpi">
-                <div style="display:flex;align-items:flex-start;gap:16px;">
-                    {radial}
-                    <div style="flex:1;min-width:0;">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                            <span style="font-size:1.1rem;">🏠</span>
-                            <span class="kpi-label">RENT COST</span>
-                        </div>
-                        <p style="font-size:0.75rem;color:{TEXT_SECONDARY};margin:0;">Meta: ≤8-10% · {fmt(arriendo_clp)}</p>
-                        {_proy}
-                        {_rec_h}
-                    </div>
-                </div>
-                <p style="font-size:0.68rem;color:{TEXT_SECONDARY};margin-top:12px;padding-top:12px;border-top:1px solid {BORDER};line-height:1.5;">
-                    <b>Costo de arriendo sobre ventas.</b> Si supera 10%, renegociar arriendo o aumentar ventas.
-                </p>
-            </div>''', unsafe_allow_html=True)
+            _rc_sub = _proy_sub(f"Meta: ≤8-10% · {fmt(arriendo_clp)}", val_proy_pct=kf["rent_cost"]["pct_proyectado"] if _kf_ok else None)
+            st.markdown(kpi("🏠", "Rent Cost", fmt_pct(rent_cost_pct),
+                            _rc_sub, rc_color,
+                            record=kpi_record("rent_cost_pct", rent_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
+        kpi_tip("<b>Costo de arriendo sobre ventas.</b> Si supera 10%, renegociar arriendo o aumentar ventas." + (" <b>Valor proyectado al cierre.</b>" if _mes_abierto else ""))
 
     with g4:
-        _pc_radial_pct = min(prime_cost_pct * (100 / 65), 100)  # Scale: 65% = 100% fill
-        _pc_color = "success" if prime_cost_pct <= 60 else ("warning" if prime_cost_pct <= 65 else "danger")
-        radial = render_radial_progress(_pc_radial_pct, _pc_color, fmt_pct(prime_cost_pct))
-        _proy = f'<p style="font-size:0.72rem;color:{TOTEAT_RED};font-weight:500;">Proy. cierre: {fmt_pct(kf["prime_cost"]["pct_proyectado"])}</p>' if _mes_abierto and _kf_ok else ""
-        _rec = kpi_record("prime_cost_pct", prime_cost_pct, higher_is_better=False, is_money=False) or ""
-        _rec_h = f'<span class="badge-record">{_rec}</span>' if _rec else ""
-        st.markdown(f'''<div class="kpi">
-            <div style="display:flex;align-items:flex-start;gap:16px;">
-                {radial}
-                <div style="flex:1;min-width:0;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                        <span style="font-size:1.1rem;">📊</span>
-                        <span class="kpi-label">PRIME COST</span>
-                    </div>
-                    <p style="font-size:0.75rem;color:{TEXT_SECONDARY};margin:0;">Meta: ≤60-65% (Food+Labor)</p>
-                    {_proy}
-                    {_rec_h}
-                </div>
-            </div>
-            <p style="font-size:0.68rem;color:{TEXT_SECONDARY};margin-top:12px;padding-top:12px;border-top:1px solid {BORDER};line-height:1.5;">
-                <b>El KPI mas importante.</b> Suma Food Cost + Labor Cost. Si supera 65%, el negocio no es sostenible.
-            </p>
-        </div>''', unsafe_allow_html=True)
+        fig = _gauge_chart("Prime Cost %", round(prime_cost_pct, 1), "%",
+                           green_range=(50, 60), red_threshold=65, max_val=100)
+        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
+        pc_color = _kpi_color(prime_cost_pct, (50, 60), (45, 65))
+        _pc_sub = _proy_sub("Meta: ≤60-65% (Food+Labor)", val_proy_pct=kf["prime_cost"]["pct_proyectado"] if _kf_ok else None)
+        st.markdown(kpi("📊", "Prime Cost", fmt_pct(prime_cost_pct),
+                        _pc_sub, pc_color,
+                        record=kpi_record("prime_cost_pct", prime_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
+        kpi_tip("<b>El KPI mas importante.</b> Suma Food Cost + Labor Cost. Si supera 65%, el negocio no es sostenible." + (" <b>Valor proyectado al cierre.</b>" if _mes_abierto else ""))
+
+    if _mes_abierto:
+        st.markdown(f'<div style="font-size:0.72rem;color:{SUCCESS};font-weight:600;text-align:center;margin:8px 0;">📊 Los % de Labor, Rent y Prime Cost muestran valores proyectados al cierre del mes (basado en {kf["dias_operados"]} de {kf["dias_operables_mes"]} dias operables)</div>', unsafe_allow_html=True)
 
     st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
 
