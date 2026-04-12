@@ -2836,17 +2836,14 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
             first_local = True
             for key in allowed_locals:
                 try:
-                    if not first_local:
-                        time.sleep(1)
                     raw = cached_get_sales(clients[key], first_of_month.isoformat(), end_of_month.isoformat(), local_key=key)
                     local_data = raw.get("data", [])
                     combined_data.extend(local_data)
                     local_stats = process_sales(local_data)
                     if local_stats:
                         per_local_stats[key] = local_stats
-                    first_local = False
                 except Exception:
-                    first_local = False
+                    pass
 
                 # Tables for capacity
                 try:
@@ -2864,7 +2861,8 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
             st.info(f"Sin ventas registradas en {kpi_month} {kpi_year} para ningun local.")
             return
 
-        dias_periodo = (end_of_month - first_of_month).days + 1
+        _fecha_real_red = min(end_of_month, date.today()) if is_current_month else end_of_month
+        dias_periodo = (_fecha_real_red - first_of_month).days + 1
         total_ventas = s["total_sales"]
         total_cost = s["total_cost"]
         num_orders = s["num_orders"]
@@ -2882,15 +2880,26 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
         avg_horas_op = sum(horas_ops) / len(horas_ops) if horas_ops else 12
 
     # ══════════════════════════════════════════
-    # KPIs FINANCIEROS
+    # KPIs FINANCIEROS (con modulo dual real/proyectado)
     # ══════════════════════════════════════════
-    food_cost_pct = (total_cost / total_ventas * 100) if total_ventas else 0
-    labor_cost_pct = (total_sueldos / total_ventas * 100) if total_ventas else 0
-    rent_cost_pct = (total_arriendo_clp / total_ventas * 100) if total_ventas else 0
-    prime_cost_pct = food_cost_pct + labor_cost_pct
-    margen_bruto = total_ventas - total_cost
-    resultado_op = total_ventas - total_cost - total_sueldos - total_arriendo_clp - total_servicios - total_otros
-    punto_equilibrio = gastos_fijos / (1 - food_cost_pct / 100) if food_cost_pct < 100 else 0
+    _avg_dias_cierre = 0  # consolidado no tiene dias cierre por ahora
+    kf = calcular_kpis_financieros(
+        venta_acumulada=total_ventas, costo_alimentos_acumulado=total_cost,
+        sueldos_mensual=total_sueldos, arriendo_clp=total_arriendo_clp,
+        servicios_mensual=total_servicios, otros_gastos_mensual=total_otros,
+        fecha_desde=first_of_month.isoformat(), fecha_hasta=_fecha_real_red.isoformat(),
+        dias_cierre_semana=_avg_dias_cierre,
+    )
+    _kf_ok = not kf.get("sin_ventas", True)
+    _mes_abierto = _kf_ok and not kf.get("mes_cerrado", True)
+
+    food_cost_pct = kf["food_cost"]["pct_real"] if _kf_ok else 0
+    labor_cost_pct = kf["labor_cost"]["pct_proyectado"] if _kf_ok else 0
+    rent_cost_pct = kf["rent_cost"]["pct_proyectado"] if _kf_ok else 0
+    prime_cost_pct = kf["prime_cost"]["pct_proyectado"] if _kf_ok else 0
+    margen_bruto = kf["margen_bruto"]["monto_real"] if _kf_ok else 0
+    resultado_op = kf["resultado_operacional"]["monto_real"] if _kf_ok else 0
+    punto_equilibrio = kf["punto_equilibrio"]["monto"] if _kf_ok else 0
 
     # Operativos
     ticket_promedio = total_ventas / num_orders if num_orders else 0
@@ -2901,60 +2910,62 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
 
     sec("💰", "KPIs Financieros — Red Completa")
 
-    # Gauges
+    # Radial progress KPIs
     g1, g2, g3, g4 = st.columns(4)
     with g1:
-        fig = _gauge_chart("Food Cost %", round(food_cost_pct, 1), "%",
-                           green_range=(28, 35), red_threshold=40)
-        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
-        fc_color = _kpi_color(food_cost_pct, (28, 35), (22, 40))
-        st.markdown(kpi("🥩", "Food Cost", fmt_pct(food_cost_pct),
-                        f"Meta: 28-35% · {fmt(total_cost)}", fc_color), unsafe_allow_html=True)
+        _fc_c = "success" if food_cost_pct <= 35 else ("warning" if food_cost_pct <= 40 else "danger")
+        _r = _radial_svg(min(food_cost_pct * 2, 100), _fc_c, fmt_pct(food_cost_pct))
+        _p = f"Proy. cierre: {fmt_pct(kf['food_cost']['pct_proyectado'])}" if _mes_abierto and _kf_ok else ""
+        st.markdown(_radial_kpi_card(_r, "🥩", "FOOD COST", f"Meta: 28-35% &middot; {fmt(total_cost)}", _p, "",
+            "<b>Costo de alimentos sobre ventas.</b>"), unsafe_allow_html=True)
 
     with g2:
-        fig = _gauge_chart("Labor Cost %", round(labor_cost_pct, 1), "%",
-                           green_range=(20, 30), red_threshold=35)
-        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
-        lc_color = _kpi_color(labor_cost_pct, (20, 30), (15, 35))
+        _lc_c = "success" if labor_cost_pct <= 30 else ("warning" if labor_cost_pct <= 35 else "danger")
+        _r = _radial_svg(min(labor_cost_pct * 100 / 35, 100), _lc_c, fmt_pct(labor_cost_pct))
+        _p = f"Proy. cierre: {fmt_pct(kf['labor_cost']['pct_proyectado'])}" if _mes_abierto and _kf_ok else ""
         if total_sueldos == 0:
             st.caption("Configura sueldos por local para calcular Labor Cost")
         else:
-            st.markdown(kpi("👨‍🍳", "Labor Cost", fmt_pct(labor_cost_pct),
-                            f"Meta: ≤30% · {fmt(total_sueldos)}", lc_color), unsafe_allow_html=True)
+            st.markdown(_radial_kpi_card(_r, "👨‍🍳", "LABOR COST", f"Meta: &le;30% &middot; {fmt(total_sueldos)}", _p, "",
+                "<b>Costo de personal sobre ventas.</b>"), unsafe_allow_html=True)
 
     with g3:
-        fig = _gauge_chart("Rent Cost %", round(rent_cost_pct, 1), "%",
-                           green_range=(5, 8), red_threshold=10)
-        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
-        rc_color = _kpi_color(rent_cost_pct, (5, 8), (3, 10))
+        _rc_c = "success" if rent_cost_pct <= 8 else ("warning" if rent_cost_pct <= 10 else "danger")
+        _r = _radial_svg(min(rent_cost_pct * 10, 100), _rc_c, fmt_pct(rent_cost_pct))
+        _p = f"Proy. cierre: {fmt_pct(kf['rent_cost']['pct_proyectado'])}" if _mes_abierto and _kf_ok else ""
         if total_arriendo_uf == 0:
             st.caption("Configura arriendo por local para calcular Rent Cost")
         else:
-            st.markdown(kpi("🏠", "Rent Cost", fmt_pct(rent_cost_pct),
-                            f"Meta: ≤8-10% · {fmt(total_arriendo_clp)}", rc_color), unsafe_allow_html=True)
+            st.markdown(_radial_kpi_card(_r, "🏠", "RENT COST", f"Meta: &le;8-10% &middot; {fmt(total_arriendo_clp)}", _p, "",
+                "<b>Costo de arriendo sobre ventas.</b>"), unsafe_allow_html=True)
 
     with g4:
-        fig = _gauge_chart("Prime Cost %", round(prime_cost_pct, 1), "%",
-                           green_range=(50, 60), red_threshold=65, max_val=100)
-        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
-        pc_color = _kpi_color(prime_cost_pct, (50, 60), (45, 65))
-        st.markdown(kpi("📊", "Prime Cost", fmt_pct(prime_cost_pct),
-                        "Meta: ≤60-65% (Food+Labor)", pc_color), unsafe_allow_html=True)
+        _pc_c = "success" if prime_cost_pct <= 60 else ("warning" if prime_cost_pct <= 65 else "danger")
+        _r = _radial_svg(min(prime_cost_pct * 100 / 65, 100), _pc_c, fmt_pct(prime_cost_pct))
+        _p = f"Proy. cierre: {fmt_pct(kf['prime_cost']['pct_proyectado'])}" if _mes_abierto and _kf_ok else ""
+        st.markdown(_radial_kpi_card(_r, "📊", "PRIME COST", "Meta: &le;60-65% (Food+Labor)", _p, "",
+            "<b>El KPI mas importante.</b> Suma Food Cost + Labor Cost."), unsafe_allow_html=True)
 
     st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
 
-    # Cards financieros
+    # Cards financieros con proyeccion
     f1, f2, f3 = st.columns(3)
     with f1:
-        st.markdown(kpi("📈", "Margen Bruto", fmt(margen_bruto),
-                        f"Ventas: {fmt(total_ventas)} — Costo: {fmt(total_cost)}"), unsafe_allow_html=True)
+        _mb_p = f"Proy. cierre: {fmt(kf['margen_bruto']['monto_proyectado'])}" if _mes_abierto and _kf_ok else ""
+        _mb_sub = f"Ventas: {fmt(total_ventas)} — Costo: {fmt(total_cost)}"
+        if _mb_p:
+            _mb_sub += f" · <span style='color:{SUCCESS};font-weight:700;'>{_mb_p}</span>"
+        st.markdown(kpi("📈", "Margen Bruto", fmt(margen_bruto), _mb_sub), unsafe_allow_html=True)
     with f2:
         res_color = "normal" if resultado_op > 0 else "red"
-        st.markdown(kpi("🏦", "Resultado Operacional", fmt(resultado_op),
-                        f"Gastos fijos: {fmt(gastos_fijos)}", res_color), unsafe_allow_html=True)
+        _ro_sub = f"Gastos fijos: {fmt(gastos_fijos)}"
+        if _mes_abierto and _kf_ok:
+            _ro_sub += f" · <span style='color:{SUCCESS};font-weight:700;'>Proy: {fmt(kf['resultado_operacional']['monto_proyectado'])}</span>"
+        st.markdown(kpi("🏦", "Resultado Operacional", fmt(resultado_op), _ro_sub, res_color), unsafe_allow_html=True)
     with f3:
-        st.markdown(kpi("⚖️", "Punto de Equilibrio", fmt(punto_equilibrio),
-                        "Venta minima para cubrir costos fijos"), unsafe_allow_html=True)
+        _pe_cubierto = kf["punto_equilibrio"]["cubierto"] if _kf_ok else False
+        _pe_sub = f"<span style='color:{SUCCESS};font-weight:700;'>✓ Cubierto por pronostico</span>" if _pe_cubierto else "Venta minima para cubrir costos fijos"
+        st.markdown(kpi("⚖️", "Punto de Equilibrio", fmt(punto_equilibrio), _pe_sub), unsafe_allow_html=True)
 
     # Progress bar
     if punto_equilibrio > 0:
@@ -3027,7 +3038,7 @@ def render_consolidated_kpis(clients, locals_config, allowed_locals):
     sec("⚙️", "KPIs Operativos — Red Completa")
 
     st.markdown(f"""<div style="font-size:0.78rem;color:{TEXT_SECONDARY};margin-bottom:10px;">
-        Periodo: {first_of_month.strftime('%d/%m/%Y')} al {end_of_month.strftime('%d/%m/%Y')} ({dias_periodo} dias)
+        Periodo: {first_of_month.strftime('%d/%m/%Y')} al {_fecha_real_red.strftime('%d/%m/%Y')} ({dias_periodo} dias)
         — {total_seats} asientos en {total_tables} mesas — {total_m2} m2 totales
     </div>""", unsafe_allow_html=True)
 
