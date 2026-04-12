@@ -32,34 +32,35 @@ st.set_page_config(
 # TOTEAT BRAND PALETTE
 # ──────────────────────────────────────────────
 
-TOTEAT_RED = "#ff4235"
-TOTEAT_RED_HOVER = "#ffa099"
-TOTEAT_RED_LIGHT = "#fff1f0"
-TOTEAT_RED_BG = "#ff42350d"
-BG_PAGE = "#f7f8fa"
+TOTEAT_RED = "#E8553D"
+TOTEAT_RED_HOVER = "#F4A99E"
+TOTEAT_RED_LIGHT = "#fef2f0"
+TOTEAT_RED_BG = "#E8553D0d"
+BG_PAGE = "#f5f3ef"
 BG_CARD = "#ffffff"
-BG_SIDEBAR = "#1a1a1a"
-TEXT_PRIMARY = "#1a1a1a"
+BG_SIDEBAR = "#1f2937"
+TEXT_PRIMARY = "#1f2937"
 TEXT_SECONDARY = "#6b7280"
 TEXT_MUTED = "#9ca3af"
-BORDER = "#e5e7eb"
-BORDER_LIGHT = "#f3f4f6"
-SUCCESS = "#22c55e"
+BORDER = "#e8e4dd"
+BORDER_LIGHT = "#f0ece6"
+SUCCESS = "#2E9E5E"
 SUCCESS_BG = "#f0fdf4"
-WARNING = "#f59e0b"
+WARNING = "#E09A0C"
 WARNING_BG = "#fffbeb"
 DANGER = "#ef4444"
 DANGER_BG = "#fef2f2"
 
 CUSTOM_CSS = f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 /* Global */
 .stApp {{
-    font-family: 'Nunito Sans', 'Inter', sans-serif;
+    font-family: 'DM Sans', sans-serif;
     background-color: {BG_PAGE};
 }}
+h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif !important; }}
 .block-container {{
     padding-top: 0.6rem;
     padding-bottom: 0;
@@ -74,20 +75,23 @@ CUSTOM_CSS = f"""
     padding: 16px 20px;
     border: 1px solid {BORDER};
     min-height: 90px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(31,41,55,0.04);
+    transition: all 0.2s ease;
 }}
 .kpi-icon {{ font-size: 1.3rem; margin-bottom: 2px; }}
 .kpi-label {{
-    font-size: 0.68rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.62rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #374151;
+    color: {TEXT_SECONDARY};
     margin-bottom: 2px;
 }}
 .kpi-val {{
+    font-family: 'Space Grotesk', sans-serif;
     font-size: 1.6rem;
-    font-weight: 800;
+    font-weight: 700;
     color: {TEXT_PRIMARY};
     line-height: 1.2;
 }}
@@ -95,56 +99,37 @@ CUSTOM_CSS = f"""
 .kpi-sub-warn {{ font-size: 0.73rem; color: {WARNING}; margin-top: 3px; font-weight: 600; }}
 .kpi-sub-red {{ font-size: 0.73rem; color: {DANGER}; margin-top: 3px; font-weight: 600; }}
 
-/* Badge */
+/* Badges */
 .badge-active {{
-    display: inline-block;
-    background: {SUCCESS_BG};
-    color: {SUCCESS};
-    padding: 4px 14px;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 800;
-    border: 1px solid {SUCCESS}30;
+    display: inline-block; background: {SUCCESS_BG}; color: {SUCCESS};
+    padding: 4px 14px; border-radius: 20px; font-size: 0.72rem;
+    font-weight: 800; border: 1px solid {SUCCESS}30;
 }}
 .badge-trial {{
-    display: inline-block;
-    background: {WARNING_BG};
-    color: {WARNING};
-    padding: 4px 14px;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 800;
-    border: 1px solid {WARNING}30;
+    display: inline-block; background: {WARNING_BG}; color: {WARNING};
+    padding: 4px 14px; border-radius: 20px; font-size: 0.72rem;
+    font-weight: 800; border: 1px solid {WARNING}30;
 }}
 .badge-suspended {{
-    display: inline-block;
-    background: {DANGER_BG};
-    color: {DANGER};
-    padding: 4px 14px;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 800;
-    border: 1px solid {DANGER}30;
+    display: inline-block; background: {DANGER_BG}; color: {DANGER};
+    padding: 4px 14px; border-radius: 20px; font-size: 0.72rem;
+    font-weight: 800; border: 1px solid {DANGER}30;
 }}
 .badge-created {{
-    display: inline-block;
-    background: #f0f4ff;
-    color: #6366f1;
-    padding: 4px 14px;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 800;
-    border: 1px solid #6366f130;
+    display: inline-block; background: #f0f4ff; color: #6366f1;
+    padding: 4px 14px; border-radius: 20px; font-size: 0.72rem;
+    font-weight: 800; border: 1px solid #6366f130;
 }}
 
 /* Section header */
 .sec {{
-    font-size: 0.95rem;
-    font-weight: 800;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
     color: {TEXT_PRIMARY};
-    margin: 28px 0 12px 0;
-    padding-bottom: 8px;
-    border-bottom: 2px solid {TOTEAT_RED};
+    margin: 28px 0 16px 0;
+    padding: 0;
+    border-bottom: none;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -152,135 +137,81 @@ CUSTOM_CSS = f"""
 
 /* Header */
 .toteat-header {{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 0 14px 0;
-    border-bottom: 1px solid {BORDER};
-    margin-bottom: 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0 14px 0; border-bottom: 1px solid {BORDER}; margin-bottom: 18px;
 }}
-.toteat-brand {{
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}}
+.toteat-brand {{ display: flex; align-items: center; gap: 10px; }}
 .toteat-logo-icon {{
-    width: 32px;
-    height: 32px;
-    background: {TOTEAT_RED};
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 900;
-    font-size: 16px;
+    width: 32px; height: 32px; background: {TOTEAT_RED}; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 900; font-size: 16px;
 }}
 .toteat-title {{
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: {TEXT_PRIMARY};
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.25rem; font-weight: 700; color: {TEXT_PRIMARY};
 }}
-.toteat-title span {{
-    color: {TOTEAT_RED};
+.toteat-title span {{ color: {TOTEAT_RED}; }}
+.toteat-subtitle {{ font-size: 0.78rem; color: {TEXT_SECONDARY}; font-weight: 500; }}
+
+/* Tabs - scrollable */
+[data-testid="stTabs"] > div:first-child {{
+    overflow-x: auto; flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    background: rgba(0,0,0,0.03); border-radius: 12px; padding: 4px;
 }}
-.toteat-subtitle {{
-    font-size: 0.78rem;
-    color: #4b5563;
-    font-weight: 500;
+[data-testid="stTabs"] button {{
+    white-space: nowrap; min-width: fit-content; border-radius: 8px; font-weight: 500;
+}}
+[data-testid="stTabs"] button[aria-selected="true"] {{
+    background: {TEXT_PRIMARY} !important; color: white !important;
 }}
 
-/* Tabs - Toteat style */
-.stTabs [data-baseweb="tab-list"] {{
-    gap: 0;
-    background: {BG_CARD};
-    border-radius: 10px;
-    padding: 3px;
-    border: 1px solid {BORDER};
-}}
-.stTabs [data-baseweb="tab"] {{
-    border-radius: 8px;
-    padding: 8px 20px;
-    font-weight: 700;
-    font-size: 0.82rem;
-    color: {TEXT_SECONDARY};
-}}
-.stTabs [aria-selected="true"] {{
-    background: {TEXT_PRIMARY};
-    color: white !important;
-}}
-
-/* Buttons - Toteat red */
+/* Buttons */
 .stButton > button {{
-    background: {TOTEAT_RED};
-    color: white;
-    font-weight: 700;
-    border: none;
-    border-radius: 8px;
-    padding: 6px 20px;
-    font-size: 0.82rem;
-    transition: all 0.2s;
-    white-space: nowrap;
+    background: {TOTEAT_RED}; color: white; font-weight: 700; border: none;
+    border-radius: 8px; padding: 6px 20px; font-size: 0.82rem;
+    transition: all 0.2s; white-space: nowrap;
 }}
 .stButton > button:hover {{
-    background: #e6372c;
-    box-shadow: 0 2px 8px {TOTEAT_RED}30;
+    background: #c44433; box-shadow: 0 2px 8px {TOTEAT_RED}30;
 }}
 
 /* Company table header */
 .company-table-header {{
-    display: grid;
-    grid-template-columns: 2.5fr 1.5fr 2.5fr 1fr 1fr 2.2fr;
-    gap: 8px;
-    padding: 10px 16px;
-    background: {TEXT_PRIMARY};
-    color: white;
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-radius: 8px;
-    margin-bottom: 4px;
+    display: grid; grid-template-columns: 2.5fr 1.5fr 2.5fr 1fr 1fr 2.2fr;
+    gap: 8px; padding: 10px 16px; background: {TEXT_PRIMARY}; color: white;
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; border-radius: 8px; margin-bottom: 4px;
 }}
 
 /* Dataframes */
 .stDataFrame {{
-    border-radius: 10px;
-    overflow: hidden;
-    border: 1px solid {BORDER};
+    border-radius: 10px; overflow: hidden; border: 1px solid {BORDER};
+}}
+
+/* Expander */
+[data-testid="stExpander"] {{
+    border: 2px solid rgba(232,85,61,0.3);
+    border-radius: 12px;
+    background: rgba(232,85,61,0.03);
 }}
 
 /* Plotly container */
 .stPlotlyChart {{
-    background: {BG_CARD};
-    border-radius: 12px;
-    border: 1px solid {BORDER};
-    padding: 8px;
+    background: {BG_CARD}; border-radius: 12px;
+    border: 1px solid {BORDER}; padding: 8px;
 }}
 
 /* Login container */
 .login-box {{
-    max-width: 400px;
-    margin: 80px auto;
-    background: {BG_CARD};
-    border-radius: 16px;
-    padding: 40px;
-    border: 1px solid {BORDER};
-    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-    text-align: center;
+    max-width: 400px; margin: 80px auto; background: {BG_CARD};
+    border-radius: 16px; padding: 40px; border: 1px solid {BORDER};
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06); text-align: center;
 }}
 .login-logo {{
-    width: 48px;
-    height: 48px;
-    background: {TOTEAT_RED};
-    border-radius: 12px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 900;
-    font-size: 22px;
-    margin-bottom: 16px;
+    width: 48px; height: 48px; background: {TOTEAT_RED}; border-radius: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: white; font-weight: 900; font-size: 22px; margin-bottom: 16px;
 }}
 </style>
 """
@@ -288,14 +219,14 @@ CUSTOM_CSS = f"""
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 PLOTLY_LAYOUT = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Nunito Sans, Inter, sans-serif", color="#1a1a1a", size=12),
-    margin=dict(l=16, r=16, t=40, b=16),
-    xaxis=dict(gridcolor=BORDER, zeroline=False, tickfont=dict(color="#374151", size=11)),
-    yaxis=dict(gridcolor=BORDER, zeroline=False, tickfont=dict(color="#374151", size=11)),
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+    font=dict(family="DM Sans, sans-serif", color=TEXT_PRIMARY, size=11),
+    margin=dict(l=40, r=20, t=40, b=30),
+    xaxis=dict(gridcolor=BORDER, zeroline=False, tickfont=dict(color=TEXT_SECONDARY, size=10)),
+    yaxis=dict(gridcolor=BORDER, zeroline=False, tickfont=dict(color=TEXT_SECONDARY, size=10)),
     bargap=0.3,
-    title_font=dict(color="#1a1a1a", size=14),
+    title_font=dict(family="Space Grotesk, sans-serif", color=TEXT_PRIMARY, size=14),
 )
 
 
