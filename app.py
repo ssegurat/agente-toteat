@@ -29,38 +29,40 @@ st.set_page_config(
 # TOTEAT BRAND PALETTE (Light Mode)
 # ──────────────────────────────────────────────
 
-TOTEAT_RED = "#ff4235"
-TOTEAT_RED_HOVER = "#ffa099"
-TOTEAT_RED_LIGHT = "#fff1f0"
-TOTEAT_RED_BG = "#ff42350d"
-BG_PAGE = "#f7f8fa"
+TOTEAT_RED = "#E8553D"
+TOTEAT_RED_HOVER = "#F4A99E"
+TOTEAT_RED_LIGHT = "#fef2f0"
+TOTEAT_RED_BG = "#E8553D0d"
+BG_PAGE = "#f5f3ef"
 BG_CARD = "#ffffff"
-BG_SIDEBAR = "#1a1a1a"
-TEXT_PRIMARY = "#1a1a1a"
+BG_SIDEBAR = "#1f2937"
+TEXT_PRIMARY = "#1f2937"
 TEXT_SECONDARY = "#6b7280"
 TEXT_MUTED = "#9ca3af"
-BORDER = "#e5e7eb"
-BORDER_LIGHT = "#f3f4f6"
-SUCCESS = "#22c55e"
+BORDER = "#e8e4dd"
+BORDER_LIGHT = "#f0ece6"
+SUCCESS = "#2E9E5E"
 SUCCESS_BG = "#f0fdf4"
-WARNING = "#f59e0b"
+WARNING = "#E09A0C"
 WARNING_BG = "#fffbeb"
 DANGER = "#ef4444"
 DANGER_BG = "#fef2f2"
+ACCENT_LIGHT = "#F4A99E"
 
 TOTEAT_LOGO_SVG = """<svg width="160" height="28" viewBox="0 0 160 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-<text x="0" y="22" font-family="Inter, sans-serif" font-size="22" font-weight="800" fill="#1a1a1a">tot<tspan fill="#ff4235">eat</tspan> <tspan fill="#ff4235">AI</tspan></text>
+<text x="0" y="22" font-family="Space Grotesk, sans-serif" font-size="22" font-weight="700" fill="#1f2937">tot<tspan fill="#E8553D">eat</tspan> <tspan fill="#E8553D">AI</tspan></text>
 </svg>"""
 
 CUSTOM_CSS = f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 /* Global */
 .stApp {{
-    font-family: 'Nunito Sans', 'Inter', sans-serif;
+    font-family: 'DM Sans', sans-serif;
     background-color: {BG_PAGE};
 }}
+h1, h2, h3 {{ font-family: 'Space Grotesk', sans-serif !important; }}
 .block-container {{
     padding-top: 0.6rem;
     padding-bottom: 0;
@@ -75,20 +77,23 @@ CUSTOM_CSS = f"""
     padding: 16px 20px;
     border: 1px solid {BORDER};
     min-height: 90px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(31,41,55,0.04);
+    transition: all 0.2s ease;
 }}
 .kpi-icon {{ font-size: 1.3rem; margin-bottom: 2px; }}
 .kpi-label {{
-    font-size: 0.68rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.62rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #374151;
+    color: {TEXT_SECONDARY};
     margin-bottom: 2px;
 }}
 .kpi-val {{
+    font-family: 'Space Grotesk', sans-serif;
     font-size: 1.6rem;
-    font-weight: 800;
+    font-weight: 700;
     color: {TEXT_PRIMARY};
     line-height: 1.2;
 }}
@@ -96,7 +101,7 @@ CUSTOM_CSS = f"""
 .kpi-sub-warn {{ font-size: 0.73rem; color: {WARNING}; margin-top: 3px; font-weight: 600; }}
 .kpi-sub-red {{ font-size: 0.73rem; color: {DANGER}; margin-top: 3px; font-weight: 600; }}
 
-/* Badge */
+/* Badges */
 .badge-open {{
     display: inline-block;
     background: {SUCCESS_BG};
@@ -117,15 +122,31 @@ CUSTOM_CSS = f"""
     font-weight: 800;
     border: 1px solid {DANGER}30;
 }}
+.badge-positive {{
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.72rem; font-weight: 600; padding: 2px 8px;
+    border-radius: 20px; background: #f0fdf4; color: {SUCCESS};
+}}
+.badge-negative {{
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.72rem; font-weight: 600; padding: 2px 8px;
+    border-radius: 20px; background: #fef2f2; color: {DANGER};
+}}
+.badge-record {{
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.72rem; font-weight: 500; padding: 2px 8px;
+    border-radius: 20px; background: rgba(224,154,12,0.1); color: {WARNING};
+}}
 
 /* Section header */
 .sec {{
-    font-size: 0.95rem;
-    font-weight: 800;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
     color: {TEXT_PRIMARY};
-    margin: 28px 0 12px 0;
-    padding-bottom: 8px;
-    border-bottom: 2px solid {TOTEAT_RED};
+    margin: 28px 0 16px 0;
+    padding: 0;
+    border-bottom: none;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -158,8 +179,9 @@ CUSTOM_CSS = f"""
     font-size: 16px;
 }}
 .toteat-title {{
+    font-family: 'Space Grotesk', sans-serif;
     font-size: 1.25rem;
-    font-weight: 800;
+    font-weight: 700;
     color: {TEXT_PRIMARY};
 }}
 .toteat-title span {{
@@ -167,36 +189,36 @@ CUSTOM_CSS = f"""
 }}
 .toteat-subtitle {{
     font-size: 0.78rem;
-    color: #4b5563;
+    color: {TEXT_SECONDARY};
     font-weight: 500;
 }}
 .toteat-date {{
     font-size: 0.8rem;
-    color: #4b5563;
+    color: {TEXT_SECONDARY};
     font-weight: 600;
 }}
 
-/* Tabs - Toteat style */
-.stTabs [data-baseweb="tab-list"] {{
-    gap: 0;
-    background: {BG_CARD};
-    border-radius: 10px;
-    padding: 3px;
-    border: 1px solid {BORDER};
+/* Tabs - scrollable on mobile */
+[data-testid="stTabs"] > div:first-child {{
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    background: rgba(0,0,0,0.03);
+    border-radius: 12px;
+    padding: 4px;
 }}
-.stTabs [data-baseweb="tab"] {{
+[data-testid="stTabs"] button {{
+    white-space: nowrap;
+    min-width: fit-content;
     border-radius: 8px;
-    padding: 8px 20px;
-    font-weight: 700;
-    font-size: 0.82rem;
-    color: {TEXT_SECONDARY};
+    font-weight: 500;
 }}
-.stTabs [aria-selected="true"] {{
-    background: {TEXT_PRIMARY};
+[data-testid="stTabs"] button[aria-selected="true"] {{
+    background: {TEXT_PRIMARY} !important;
     color: white !important;
 }}
 
-/* Buttons - Toteat red */
+/* Buttons */
 .stButton > button {{
     background: {TOTEAT_RED};
     color: white;
@@ -206,9 +228,10 @@ CUSTOM_CSS = f"""
     padding: 6px 20px;
     font-size: 0.82rem;
     transition: all 0.2s;
+    white-space: nowrap;
 }}
 .stButton > button:hover {{
-    background: #e6372c;
+    background: #c44433;
     box-shadow: 0 2px 8px {TOTEAT_RED}30;
 }}
 
@@ -231,6 +254,11 @@ section[data-testid="stSidebar"] {{
 }}
 
 /* Expander */
+[data-testid="stExpander"] {{
+    border: 2px solid rgba(232,85,61,0.3);
+    border-radius: 12px;
+    background: rgba(232,85,61,0.03);
+}}
 .streamlit-expanderHeader {{
     font-weight: 700;
     font-size: 0.85rem;
@@ -249,6 +277,12 @@ section[data-testid="stSidebar"] {{
     border-radius: 12px;
 }}
 
+/* Input styling */
+input[type="number"], input[type="text"] {{
+    min-height: 40px;
+    border-radius: 8px;
+}}
+
 /* ═══ ONBOARDING WIZARD ═══ */
 .wizard-container {{
     max-width: 480px;
@@ -256,13 +290,11 @@ section[data-testid="stSidebar"] {{
     padding: 24px 16px;
     text-align: center;
 }}
-.wizard-icon {{
-    font-size: 3.5rem;
-    margin-bottom: 12px;
-}}
+.wizard-icon {{ font-size: 3.5rem; margin-bottom: 12px; }}
 .wizard-title {{
+    font-family: 'Space Grotesk', sans-serif;
     font-size: 1.4rem;
-    font-weight: 800;
+    font-weight: 700;
     color: {TEXT_PRIMARY};
     margin-bottom: 8px;
     line-height: 1.3;
@@ -274,46 +306,24 @@ section[data-testid="stSidebar"] {{
     line-height: 1.5;
 }}
 .wizard-progress {{
-    display: flex;
-    gap: 6px;
-    justify-content: center;
-    margin-bottom: 28px;
+    display: flex; gap: 6px; justify-content: center; margin-bottom: 28px;
 }}
 .wizard-dot {{
-    width: 32px;
-    height: 5px;
-    border-radius: 3px;
-    background: {BORDER};
-    transition: all 0.3s;
+    width: 32px; height: 5px; border-radius: 3px;
+    background: {BORDER}; transition: all 0.3s;
 }}
-.wizard-dot.active {{
-    background: {TOTEAT_RED};
-    width: 48px;
-}}
-.wizard-dot.done {{
-    background: {SUCCESS};
-}}
+.wizard-dot.active {{ background: {TOTEAT_RED}; width: 48px; }}
+.wizard-dot.done {{ background: {SUCCESS}; }}
 .wizard-tip {{
-    font-size: 0.78rem;
-    color: {TEXT_SECONDARY};
-    background: {BORDER_LIGHT};
-    padding: 10px 14px;
-    border-radius: 10px;
-    margin-top: 12px;
-    line-height: 1.5;
-    text-align: left;
+    font-size: 0.78rem; color: {TEXT_SECONDARY}; background: {BORDER_LIGHT};
+    padding: 10px 14px; border-radius: 10px; margin-top: 12px;
+    line-height: 1.5; text-align: left;
 }}
 .wizard-result {{
-    background: {BG_CARD};
-    border: 2px solid {SUCCESS};
-    border-radius: 16px;
-    padding: 24px;
-    margin: 16px 0;
+    background: {BG_CARD}; border: 2px solid {SUCCESS};
+    border-radius: 16px; padding: 24px; margin: 16px 0;
 }}
-.wizard-celebration {{
-    font-size: 2.5rem;
-    margin-bottom: 8px;
-}}
+.wizard-celebration {{ font-size: 2.5rem; margin-bottom: 8px; }}
 
 /* ═══ MOBILE RESPONSIVE ═══ */
 @media (max-width: 768px) {{
@@ -321,11 +331,7 @@ section[data-testid="stSidebar"] {{
         padding-left: 1rem !important;
         padding-right: 1rem !important;
     }}
-    /* Stack gauge columns 2x2 */
-    [data-testid="stHorizontalBlock"] {{
-        flex-wrap: wrap;
-    }}
-    /* Bigger touch targets */
+    [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; }}
     .stNumberInput input, .stTextInput input {{
         font-size: 1.1rem !important;
         padding: 12px !important;
@@ -335,21 +341,10 @@ section[data-testid="stSidebar"] {{
         min-height: 48px;
         font-size: 0.95rem !important;
     }}
-    /* KPI cards compact */
-    .kpi {{
-        padding: 12px !important;
-    }}
-    .kpi-val {{
-        font-size: 1.3rem !important;
-    }}
-    /* Section headers */
-    .sec {{
-        font-size: 0.85rem;
-    }}
-    /* Hide sidebar on mobile */
-    [data-testid="stSidebar"] {{
-        display: none;
-    }}
+    .kpi {{ padding: 12px !important; }}
+    .kpi-val {{ font-size: 1.3rem !important; }}
+    .sec {{ font-size: 0.95rem; }}
+    [data-testid="stSidebar"] {{ display: none; }}
 }}
 </style>
 """
@@ -364,18 +359,18 @@ Presenta los datos de forma clara con tablas cuando sea apropiado.
 """
 
 PLOTLY_LAYOUT = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Nunito Sans, Inter, sans-serif", color="#1a1a1a", size=12),
-    margin=dict(l=16, r=16, t=40, b=16),
-    xaxis=dict(gridcolor=BORDER, zeroline=False, tickfont=dict(color="#374151", size=11)),
-    yaxis=dict(gridcolor=BORDER, zeroline=False, tickfont=dict(color="#374151", size=11)),
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+    font=dict(family="DM Sans, sans-serif", color=TEXT_PRIMARY, size=11),
+    margin=dict(l=40, r=20, t=40, b=30),
+    xaxis=dict(gridcolor=BORDER, zeroline=False, tickfont=dict(color=TEXT_SECONDARY, size=10)),
+    yaxis=dict(gridcolor=BORDER, zeroline=False, tickfont=dict(color=TEXT_SECONDARY, size=10)),
     bargap=0.3,
-    title_font=dict(color="#1a1a1a", size=14),
+    title_font=dict(family="Space Grotesk, sans-serif", color=TEXT_PRIMARY, size=14),
 )
 
-CHART_COLORS = [TOTEAT_RED, "#ff6b61", "#ffa099", "#ffccc8", "#1a1a1a", "#6b7280", "#22c55e", "#f59e0b"]
-COLOR_SCALE = [[0, "#ffccc8"], [0.5, TOTEAT_RED], [1, "#c41e12"]]
+CHART_COLORS = [TOTEAT_RED, ACCENT_LIGHT, TEXT_PRIMARY, TEXT_SECONDARY, SUCCESS, WARNING, "#8b5cf6", "#06b6d4"]
+COLOR_SCALE = [[0, "#F4A99E"], [0.5, TOTEAT_RED], [1, "#c44433"]]
 
 
 # ── Helpers ──
@@ -917,8 +912,15 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                 sec("📈", "Pronostico del Mes")
                 _pc1, _pc2, _pc3 = st.columns(3)
                 with _pc1:
-                    st.markdown(kpi("📈", "Pronostico Mes", fmt(_pron["pronostico_mes"]),
-                                    f"Basado en {_pron['dias_operados']} dias operados"), unsafe_allow_html=True)
+                    st.markdown(f"""<div style="background:linear-gradient(135deg, #1f2937, #374151);
+                        border-radius:12px;padding:24px;color:white;min-height:120px;">
+                        <div style="font-size:0.62rem;font-weight:500;text-transform:uppercase;
+                            letter-spacing:0.08em;opacity:0.6;">📈 Pronostico Mes</div>
+                        <p style="font-size:1.8rem;font-family:'Space Grotesk',sans-serif;font-weight:700;margin:8px 0 0;">
+                            {fmt(_pron["pronostico_mes"])}</p>
+                        <p style="font-size:0.75rem;opacity:0.7;margin-top:8px;">
+                            Basado en {_pron['dias_operados']} dias operados</p>
+                    </div>""", unsafe_allow_html=True)
                 with _pc2:
                     st.markdown(kpi("🎯", "Presupuesto Mes", fmt(_pres) if _pres > 0 else "—",
                                     "Meta mensual" if _pres > 0 else "Sin meta definida"), unsafe_allow_html=True)
@@ -1755,6 +1757,51 @@ def _gauge_chart(title, value, suffix, green_range, red_threshold, max_val=100):
     return fig
 
 
+def _radial_svg(percent, color_name, value_text, size=88):
+    """SVG radial progress circle. Returns HTML string."""
+    import math
+    radius = (size - 16) / 2
+    circumference = 2 * math.pi * radius
+    pct = max(0, min(100, percent))
+    offset = circumference - (pct / 100) * circumference
+    colors = {"success": SUCCESS, "warning": WARNING, "accent": TOTEAT_RED, "danger": DANGER}
+    stroke = colors.get(color_name, color_name)
+    return (
+        f'<div style="position:relative;width:{size}px;height:{size}px;flex-shrink:0;">'
+        f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">'
+        f'<circle cx="{size//2}" cy="{size//2}" r="{radius}" fill="none" stroke="{BORDER}" stroke-width="7"/>'
+        f'<circle cx="{size//2}" cy="{size//2}" r="{radius}" fill="none" stroke="{stroke}" stroke-width="7" '
+        f'stroke-linecap="round" stroke-dasharray="{circumference}" stroke-dashoffset="{offset}" '
+        f'transform="rotate(-90 {size//2} {size//2})" style="transition:all 0.7s ease;"/>'
+        f'</svg>'
+        f'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">'
+        f'<span style="font-size:1rem;font-family:Space Grotesk,sans-serif;font-weight:700;color:{TEXT_PRIMARY};">'
+        f'{value_text}</span></div></div>'
+    )
+
+
+def _radial_kpi_card(radial_html, icon, label, meta, proy_text, rec_text, tip):
+    """Renders a full radial KPI card with all components. Returns HTML string."""
+    proy_h = f'<p style="font-size:0.72rem;color:{TOTEAT_RED};font-weight:500;margin:2px 0 0;">{proy_text}</p>' if proy_text else ""
+    rec_h = f'<span class="badge-record">{rec_text}</span>' if rec_text else ""
+    return (
+        f'<div class="kpi">'
+        f'<div style="display:flex;align-items:flex-start;gap:16px;">'
+        f'{radial_html}'
+        f'<div style="flex:1;min-width:0;">'
+        f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
+        f'<span style="font-size:1.1rem;">{icon}</span>'
+        f'<span class="kpi-label">{label}</span>'
+        f'</div>'
+        f'<p style="font-size:0.75rem;color:{TEXT_SECONDARY};margin:0;">{meta}</p>'
+        f'{proy_h}{rec_h}'
+        f'</div></div>'
+        f'<p style="font-size:0.68rem;color:{TEXT_SECONDARY};margin-top:12px;padding-top:12px;'
+        f'border-top:1px solid {BORDER};line-height:1.5;">{tip}</p>'
+        f'</div>'
+    )
+
+
 def render_onboarding_wizard(kpi_year, selected_month):
     """Wizard de onboarding — formulario unico, un solo rerun al guardar."""
 
@@ -2098,59 +2145,48 @@ def render_kpis(client=None, local_key="default", local_name=None):
             return f"{label_real} · <span style='color:{SUCCESS};font-weight:700;'>Proy. cierre: {fmt(val_proy_monto)}</span>"
         return label_real
 
-    # Gauges — muestran valor PROYECTADO (correcto) en el gauge, real como referencia
+    # Radial progress KPIs — Food Cost, Labor Cost, Rent Cost, Prime Cost
     g1, g2, g3, g4 = st.columns(4)
+
+    def _fc_col(pct):
+        return "success" if pct <= 35 else ("warning" if pct <= 40 else "danger")
+
     with g1:
-        fig = _gauge_chart("Food Cost %", round(food_cost_pct, 1), "%",
-                           green_range=(28, 35), red_threshold=40)
-        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
-        fc_color = _kpi_color(food_cost_pct, (28, 35), (22, 40))
-        st.markdown(kpi("🥩", "Food Cost", fmt_pct(food_cost_pct),
-                        f"Meta: 28-35% · {fmt(total_cost)}", fc_color,
-                        record=kpi_record("food_cost_pct", food_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
-        kpi_tip("<b>Costo de alimentos sobre ventas.</b> Mide cuanto de cada $100 que vendes se va en ingredientes.")
+        _r = _radial_svg(min(food_cost_pct * 2, 100), _fc_col(food_cost_pct), fmt_pct(food_cost_pct))
+        _p = f"Proy. cierre: {fmt_pct(kf['food_cost']['pct_proyectado'])}" if _mes_abierto and _kf_ok else ""
+        _rec = kpi_record("food_cost_pct", food_cost_pct, higher_is_better=False, is_money=False) or ""
+        st.markdown(_radial_kpi_card(_r, "🥩", "FOOD COST", f"Meta: 28-35% &middot; {fmt(total_cost)}", _p, _rec,
+            "<b>Costo de alimentos sobre ventas.</b> Mide cuanto de cada $100 se va en ingredientes."), unsafe_allow_html=True)
 
     with g2:
-        fig = _gauge_chart("Labor Cost %", round(labor_cost_pct, 1), "%",
-                           green_range=(20, 30), red_threshold=35)
-        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
-        lc_color = _kpi_color(labor_cost_pct, (20, 30), (15, 35))
+        _lc_col = "success" if labor_cost_pct <= 30 else ("warning" if labor_cost_pct <= 35 else "danger")
+        _r = _radial_svg(min(labor_cost_pct * 100 / 35, 100), _lc_col, fmt_pct(labor_cost_pct))
+        _p = f"Proy. cierre: {fmt_pct(kf['labor_cost']['pct_proyectado'])}" if _mes_abierto and _kf_ok else ""
+        _rec = kpi_record("labor_cost_pct", labor_cost_pct, higher_is_better=False, is_money=False) or ""
         if sueldos == 0:
             st.caption("Ingresa sueldos para calcular Labor Cost")
         else:
-            _lc_sub = _proy_sub(f"Meta: ≤30% · {fmt(sueldos)}", val_proy_pct=kf["labor_cost"]["pct_proyectado"] if _kf_ok else None)
-            st.markdown(kpi("👨‍🍳", "Labor Cost", fmt_pct(labor_cost_pct),
-                            _lc_sub, lc_color,
-                            record=kpi_record("labor_cost_pct", labor_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
-        kpi_tip("<b>Costo de personal sobre ventas.</b> Incluye sueldos, imposiciones y beneficios." + (" <b>Valor proyectado al cierre del mes.</b>" if _mes_abierto else ""))
+            st.markdown(_radial_kpi_card(_r, "👨‍🍳", "LABOR COST", f"Meta: &le;30% &middot; {fmt(sueldos)}", _p, _rec,
+                "<b>Costo de personal sobre ventas.</b> Incluye sueldos, imposiciones y beneficios."), unsafe_allow_html=True)
 
     with g3:
-        fig = _gauge_chart("Rent Cost %", round(rent_cost_pct, 1), "%",
-                           green_range=(5, 8), red_threshold=10)
-        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
-        rc_color = _kpi_color(rent_cost_pct, (5, 8), (3, 10))
+        _rc_col = "success" if rent_cost_pct <= 8 else ("warning" if rent_cost_pct <= 10 else "danger")
+        _r = _radial_svg(min(rent_cost_pct * 10, 100), _rc_col, fmt_pct(rent_cost_pct))
+        _p = f"Proy. cierre: {fmt_pct(kf['rent_cost']['pct_proyectado'])}" if _mes_abierto and _kf_ok else ""
+        _rec = kpi_record("rent_cost_pct", rent_cost_pct, higher_is_better=False, is_money=False) or ""
         if arriendo_uf == 0:
             st.caption("Ingresa arriendo para calcular Rent Cost")
         else:
-            _rc_sub = _proy_sub(f"Meta: ≤8-10% · {fmt(arriendo_clp)}", val_proy_pct=kf["rent_cost"]["pct_proyectado"] if _kf_ok else None)
-            st.markdown(kpi("🏠", "Rent Cost", fmt_pct(rent_cost_pct),
-                            _rc_sub, rc_color,
-                            record=kpi_record("rent_cost_pct", rent_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
-        kpi_tip("<b>Costo de arriendo sobre ventas.</b> Si supera 10%, renegociar arriendo o aumentar ventas." + (" <b>Valor proyectado al cierre.</b>" if _mes_abierto else ""))
+            st.markdown(_radial_kpi_card(_r, "🏠", "RENT COST", f"Meta: &le;8-10% &middot; {fmt(arriendo_clp)}", _p, _rec,
+                "<b>Costo de arriendo sobre ventas.</b> Si supera 10%, renegociar arriendo o aumentar ventas."), unsafe_allow_html=True)
 
     with g4:
-        fig = _gauge_chart("Prime Cost %", round(prime_cost_pct, 1), "%",
-                           green_range=(50, 60), red_threshold=65, max_val=100)
-        st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True})
-        pc_color = _kpi_color(prime_cost_pct, (50, 60), (45, 65))
-        _pc_sub = _proy_sub("Meta: ≤60-65% (Food+Labor)", val_proy_pct=kf["prime_cost"]["pct_proyectado"] if _kf_ok else None)
-        st.markdown(kpi("📊", "Prime Cost", fmt_pct(prime_cost_pct),
-                        _pc_sub, pc_color,
-                        record=kpi_record("prime_cost_pct", prime_cost_pct, higher_is_better=False, is_money=False)), unsafe_allow_html=True)
-        kpi_tip("<b>El KPI mas importante.</b> Suma Food Cost + Labor Cost. Si supera 65%, el negocio no es sostenible." + (" <b>Valor proyectado al cierre.</b>" if _mes_abierto else ""))
-
-    if _mes_abierto:
-        st.markdown(f'<div style="font-size:0.72rem;color:{SUCCESS};font-weight:600;text-align:center;margin:8px 0;">📊 Los % de Labor, Rent y Prime Cost muestran valores proyectados al cierre del mes (basado en {kf["dias_operados"]} de {kf["dias_operables_mes"]} dias operables)</div>', unsafe_allow_html=True)
+        _pc_col = "success" if prime_cost_pct <= 60 else ("warning" if prime_cost_pct <= 65 else "danger")
+        _r = _radial_svg(min(prime_cost_pct * 100 / 65, 100), _pc_col, fmt_pct(prime_cost_pct))
+        _p = f"Proy. cierre: {fmt_pct(kf['prime_cost']['pct_proyectado'])}" if _mes_abierto and _kf_ok else ""
+        _rec = kpi_record("prime_cost_pct", prime_cost_pct, higher_is_better=False, is_money=False) or ""
+        st.markdown(_radial_kpi_card(_r, "📊", "PRIME COST", "Meta: &le;60-65% (Food+Labor)", _p, _rec,
+            "<b>El KPI mas importante.</b> Suma Food Cost + Labor Cost. Si supera 65%, el negocio no es sostenible."), unsafe_allow_html=True)
 
     st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
 
