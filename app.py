@@ -533,6 +533,7 @@ def _save_params(local_key: str, year: int, month: int, params: dict):
         "m2": params.get("m2", 100),
         "num_empleados": params.get("num_empleados", 10),
         "dias_cierre_semana": params.get("dias_cierre_semana", 0),
+        "dias_cierre": params.get("dias_cierre", "[]"),
         "presupuesto_venta_neta_mensual": params.get("presupuesto_venta_neta_mensual", 0),
         "updated_at": "now()",
     }
@@ -603,9 +604,10 @@ def _load_restaurant_defaults(local_key: str = "default") -> dict:
             "m2": params.get("m2", 100),
             "num_empleados": params.get("num_empleados", 10),
             "dias_cierre_semana": params.get("dias_cierre_semana", 0),
+            "dias_cierre": params.get("dias_cierre", "[]"),
             "presupuesto_venta_neta_mensual": params.get("presupuesto_venta_neta_mensual", 0),
         }
-    return {"horas_op": 12, "m2": 100, "num_empleados": 10, "dias_cierre_semana": 0, "presupuesto_venta_neta_mensual": 0}
+    return {"horas_op": 12, "m2": 100, "num_empleados": 10, "dias_cierre_semana": 0, "dias_cierre": "[]", "presupuesto_venta_neta_mensual": 0}
 
 
 def _save_restaurant_defaults(defaults: dict, local_key: str = "default"):
@@ -951,15 +953,19 @@ def render_dashboard(client=None, local_key="default", local_name=None):
     # ══════════════════════════════════════════
     try:
         _defs = _load_restaurant_defaults()
-        _dc = _defs.get("dias_cierre_semana", 0)
+        _dc_raw = _defs.get("dias_cierre", "[]")
+        _dc_list = json.loads(_dc_raw) if isinstance(_dc_raw, str) else (_dc_raw if isinstance(_dc_raw, list) else [])
         _pres = _defs.get("presupuesto_venta_neta_mensual", 0)
         _first = date(today.year, today.month, 1)
-        _raw_month = cached_get_sales(client, _first.isoformat(), today.isoformat(), local_key=local_key)
+        # Usar ayer como fecha_hasta para evitar que hoy (ventas parciales) distorsione
+        _pron_hasta = today - timedelta(days=1) if today > _first else today
+        _raw_month = cached_get_sales(client, _first.isoformat(), _pron_hasta.isoformat(), local_key=local_key)
         _month_data = _raw_month.get("data", [])
         _venta_mes = sum(o.get("total", 0) for o in _month_data) if _month_data else 0
 
         if _venta_mes > 0:
-            _pron = calcular_pronostico_mensual(_venta_mes, _first.isoformat(), today.isoformat(), _dc, _pres)
+            _pron = calcular_pronostico_mensual(_venta_mes, _first.isoformat(), _pron_hasta.isoformat(),
+                                                 dias_cierre=_dc_list, presupuesto_mensual=_pres)
             if _pron:
                 sec("📈", "Pronostico del Mes")
                 _pc1, _pc2, _pc3 = st.columns(3)
@@ -1909,10 +1915,15 @@ def render_onboarding_wizard(kpi_year, selected_month):
         st.markdown("---")
 
         # ── Operación ──
-        st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:{TEXT_PRIMARY};">📅 Operacion del local</div>', unsafe_allow_html=True)
-        wiz_dias_cierre = st.number_input(
-            "Dias de cierre por semana", min_value=0, max_value=6, value=0, key="wiz_dias_cierre")
-        st.markdown(f'<div class="wizard-tip">Dias por semana que el local no opera (ej: 1 si cierra los lunes)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-size:0.85rem;font-weight:700;color:{TEXT_PRIMARY};">📅 Dias de cierre</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="wizard-tip">Marca los dias que el local NO opera</div>', unsafe_allow_html=True)
+        _dias_nombres = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
+        _wiz_dc_cols = st.columns(7)
+        _wiz_dias_cierre_list = []
+        for i, nombre in enumerate(_dias_nombres):
+            with _wiz_dc_cols[i]:
+                if st.checkbox(nombre, key=f"wiz_dc_{i}"):
+                    _wiz_dias_cierre_list.append(i)
 
         st.markdown("---")
 
@@ -1937,7 +1948,9 @@ def render_onboarding_wizard(kpi_year, selected_month):
         })
         _save_restaurant_defaults({
             "horas_op": wiz_horas, "m2": wiz_m2, "num_empleados": wiz_empleados,
-            "dias_cierre_semana": wiz_dias_cierre, "presupuesto_venta_neta_mensual": wiz_presupuesto,
+            "dias_cierre_semana": len(_wiz_dias_cierre_list),
+            "dias_cierre": json.dumps(_wiz_dias_cierre_list),
+            "presupuesto_venta_neta_mensual": wiz_presupuesto,
         })
         st.session_state.onboarding_done = True
         st.balloons()
@@ -2045,13 +2058,19 @@ def render_kpis(client=None, local_key="default", local_name=None):
             num_empleados = st.number_input("Num. empleados", min_value=1, step=1,
                                             value=defaults.get("num_empleados", 10), key="input_empleados")
 
-        gc8, gc9 = st.columns(2)
-        with gc8:
-            dias_cierre_semana = st.number_input("Dias cierre/semana", min_value=0, max_value=6, step=1,
-                                                  value=defaults.get("dias_cierre_semana", 0), key="input_dias_cierre")
-        with gc9:
-            presupuesto_mensual = st.number_input("Presupuesto venta mensual (CLP)", min_value=0, step=1000000,
-                                                   value=defaults.get("presupuesto_venta_neta_mensual", 0), key="input_presupuesto")
+        st.markdown(f'<div style="font-size:0.78rem;font-weight:600;color:{TEXT_PRIMARY};margin:8px 0 4px;">Dias de cierre (marca los que NO opera)</div>', unsafe_allow_html=True)
+        _dc_nombres = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
+        _saved_dc = json.loads(defaults.get("dias_cierre", "[]")) if isinstance(defaults.get("dias_cierre"), str) else defaults.get("dias_cierre", [])
+        _dc_cols = st.columns(7)
+        dias_cierre_list = []
+        for i, nombre in enumerate(_dc_nombres):
+            with _dc_cols[i]:
+                if st.checkbox(nombre, value=(i in _saved_dc), key=f"dc_{i}"):
+                    dias_cierre_list.append(i)
+        dias_cierre_semana = len(dias_cierre_list)
+
+        presupuesto_mensual = st.number_input("Presupuesto venta mensual (CLP)", min_value=0, step=1000000,
+                                               value=defaults.get("presupuesto_venta_neta_mensual", 0), key="input_presupuesto")
 
     # Guardar automaticamente gastos del mes si cambiaron
     new_month_expenses = {
@@ -2065,6 +2084,7 @@ def render_kpis(client=None, local_key="default", local_name=None):
     new_defaults = {
         "horas_op": horas_op, "m2": m2, "num_empleados": num_empleados,
         "dias_cierre_semana": dias_cierre_semana,
+        "dias_cierre": json.dumps(dias_cierre_list),
         "presupuesto_venta_neta_mensual": presupuesto_mensual,
     }
     if new_defaults != defaults:
@@ -2120,7 +2140,7 @@ def render_kpis(client=None, local_key="default", local_name=None):
         otros_gastos_mensual=otros,
         fecha_desde=first_of_month.isoformat(),
         fecha_hasta=_kf_hasta.isoformat(),
-        dias_cierre_semana=defaults.get("dias_cierre_semana", 0),
+        dias_cierre=json.loads(defaults.get("dias_cierre", "[]")) if isinstance(defaults.get("dias_cierre"), str) else defaults.get("dias_cierre", []),
     )
     _kf_ok = not kf.get("sin_ventas", True)
     _mes_abierto = _kf_ok and not kf.get("mes_cerrado", True)

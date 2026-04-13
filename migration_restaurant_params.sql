@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS restaurant_params (
     m2 INTEGER DEFAULT 100,
     num_empleados INTEGER DEFAULT 10,
     dias_cierre_semana INTEGER DEFAULT 0,
+    dias_cierre TEXT DEFAULT '[]',
     presupuesto_venta_neta_mensual BIGINT DEFAULT 0,
     -- Metadata
     updated_at TIMESTAMPTZ DEFAULT now(),

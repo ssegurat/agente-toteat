@@ -11,6 +11,7 @@ def calcular_kpis_financieros(
     otros_gastos_mensual: float,
     fecha_desde: str,
     fecha_hasta: str,
+    dias_cierre: list = None,
     dias_cierre_semana: int = 0,
     pronostico_mes: float = None,
 ):
@@ -21,7 +22,7 @@ def calcular_kpis_financieros(
         return {"sin_ventas": True}
 
     # Paso 1 — Contexto temporal
-    dias = calcular_dias_operacion_mes(fecha_desde, fecha_hasta, dias_cierre_semana)
+    dias = calcular_dias_operacion_mes(fecha_desde, fecha_hasta, dias_cierre, dias_cierre_semana)
     mes_cerrado = dias["dias_restantes_operables"] == 0
 
     if dias["dias_operados"] == 0:
@@ -42,7 +43,7 @@ def calcular_kpis_financieros(
     # Pronóstico: calcular si no viene dado
     if pronostico_mes is None:
         pron = calcular_pronostico_mensual(
-            venta_acumulada, fecha_desde, fecha_hasta, dias_cierre_semana
+            venta_acumulada, fecha_desde, fecha_hasta, dias_cierre, dias_cierre_semana
         )
         pronostico_mes = pron["pronostico_mes"] if pron else venta_acumulada
 
