@@ -445,6 +445,14 @@ def _safe_error(e):
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "restaurant_config.json")
 HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kpi_history.json")
 
+# Supabase para persistencia de parametros (si esta disponible)
+_supabase = None
+try:
+    from supabase_client import get_supabase
+    _supabase = get_supabase()
+except Exception:
+    pass
+
 
 def _load_kpi_history() -> dict:
     try:
@@ -479,89 +487,133 @@ def _save_kpi_history(year: int, month: int, kpis: dict):
         pass
 
 
-def _load_month_expenses(year: int, month: int) -> dict:
-    """Carga gastos de un mes especifico. Primero archivo local, luego Secrets."""
-    month_key = f"{year}-{month:02d}"
-    # Try local file
+def _load_params(local_key: str, year: int, month: int) -> dict:
+    """Carga parametros de un restaurante para un mes. Supabase primero, archivo local como fallback."""
+    # Supabase (persistente)
+    if _supabase:
+        try:
+            result = _supabase.table("restaurant_params").select("*").eq(
+                "local_key", local_key).eq("year", year).eq("month", month).execute()
+            if result.data:
+                return result.data[0]
+        except Exception:
+            pass
+    # Fallback: archivo local (efimero en Streamlit Cloud)
     try:
         with open(CONFIG_FILE, "r") as f:
             data = json.load(f)
+            composite_key = f"{local_key}_{year}-{month:02d}"
+            if composite_key in data:
+                return data[composite_key]
+            # Legacy format fallback (pre-Supabase)
+            month_key = f"{year}-{month:02d}"
+            params = {}
             if "months" in data and month_key in data["months"]:
-                return data["months"][month_key]
+                params.update(data["months"][month_key])
+            if "defaults" in data:
+                params.update(data["defaults"])
+            if params:
+                return params
     except (FileNotFoundError, json.JSONDecodeError):
-        pass
-    # Fallback: Secrets
-    try:
-        rc = st.secrets["restaurant_config"]
-        # Check for month-specific key in secrets
-        # Secrets format: restaurant_config.months_2026_03.sueldos = X
-        month_secret_key = f"months_{month_key.replace('-', '_')}"
-        if month_secret_key in st.secrets:
-            sec = st.secrets[month_secret_key]
-            return {
-                "sueldos": int(sec["sueldos"]),
-                "arriendo_uf": float(sec["arriendo_uf"]),
-                "servicios": int(sec["servicios"]),
-                "otros": int(sec["otros"]),
-            }
-    except Exception:
         pass
     return {}
 
 
-def _save_month_expenses(year: int, month: int, expenses: dict):
-    """Guarda gastos de un mes especifico."""
-    month_key = f"{year}-{month:02d}"
+def _save_params(local_key: str, year: int, month: int, params: dict):
+    """Guarda parametros de un restaurante para un mes. Supabase + archivo local."""
+    row = {
+        "local_key": local_key,
+        "year": year,
+        "month": month,
+        "sueldos": params.get("sueldos", 0),
+        "arriendo_uf": params.get("arriendo_uf", 0.0),
+        "servicios": params.get("servicios", 0),
+        "otros": params.get("otros", 0),
+        "horas_op": params.get("horas_op", 12),
+        "m2": params.get("m2", 100),
+        "num_empleados": params.get("num_empleados", 10),
+        "dias_cierre_semana": params.get("dias_cierre_semana", 0),
+        "presupuesto_venta_neta_mensual": params.get("presupuesto_venta_neta_mensual", 0),
+        "updated_at": "now()",
+    }
+    # Supabase (persistente)
+    if _supabase:
+        try:
+            _supabase.table("restaurant_params").upsert(
+                row, on_conflict="local_key,year,month").execute()
+        except Exception:
+            pass
+    # Archivo local (fallback rapido, con composite key)
     try:
         try:
             with open(CONFIG_FILE, "r") as f:
                 data = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             data = {}
+        composite_key = f"{local_key}_{year}-{month:02d}"
+        data[composite_key] = row
+        # Legacy format (para compatibilidad con funciones existentes)
+        month_key = f"{year}-{month:02d}"
         if "months" not in data:
             data["months"] = {}
-        data["months"][month_key] = expenses
-        with open(CONFIG_FILE, "w") as f:
-            json.dump(data, f, indent=2)
-    except Exception:
-        pass
-
-
-def _load_restaurant_defaults() -> dict:
-    """Carga parametros fijos del restaurante (horas_op, m2, num_empleados)."""
-    try:
-        with open(CONFIG_FILE, "r") as f:
-            data = json.load(f)
-            if "defaults" in data:
-                return data["defaults"]
-    except (FileNotFoundError, json.JSONDecodeError):
-        pass
-    # Fallback: Secrets
-    try:
-        rc = st.secrets["restaurant_config"]
-        return {
-            "horas_op": int(rc["horas_op"]),
-            "m2": int(rc["m2"]),
-            "num_empleados": int(rc["num_empleados"]),
+        data["months"][month_key] = {
+            "sueldos": row["sueldos"], "arriendo_uf": row["arriendo_uf"],
+            "servicios": row["servicios"], "otros": row["otros"],
         }
-    except Exception:
-        pass
-    return {"horas_op": 12, "m2": 100, "num_empleados": 10}
-
-
-def _save_restaurant_defaults(defaults: dict):
-    """Guarda parametros fijos del restaurante."""
-    try:
-        try:
-            with open(CONFIG_FILE, "r") as f:
-                data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            data = {}
-        data["defaults"] = defaults
+        data["defaults"] = {
+            "horas_op": row["horas_op"], "m2": row["m2"], "num_empleados": row["num_empleados"],
+            "dias_cierre_semana": row["dias_cierre_semana"],
+            "presupuesto_venta_neta_mensual": row["presupuesto_venta_neta_mensual"],
+        }
         with open(CONFIG_FILE, "w") as f:
             json.dump(data, f, indent=2)
     except Exception:
         pass
+
+
+# Wrappers de compatibilidad (usados por render_kpis y otros)
+def _load_month_expenses(year: int, month: int, local_key: str = "default") -> dict:
+    """Carga gastos mensuales."""
+    params = _load_params(local_key, year, month)
+    if not params:
+        return {}
+    return {
+        "sueldos": params.get("sueldos", 0),
+        "arriendo_uf": float(params.get("arriendo_uf", 0.0)),
+        "servicios": params.get("servicios", 0),
+        "otros": params.get("otros", 0),
+    }
+
+
+def _save_month_expenses(year: int, month: int, expenses: dict, local_key: str = "default"):
+    """Guarda gastos mensuales."""
+    existing = _load_params(local_key, year, month)
+    merged = {**existing, **expenses}
+    _save_params(local_key, year, month, merged)
+
+
+def _load_restaurant_defaults(local_key: str = "default") -> dict:
+    """Carga parametros fijos del restaurante."""
+    # Buscar el mes actual
+    today = date.today()
+    params = _load_params(local_key, today.year, today.month)
+    if params:
+        return {
+            "horas_op": params.get("horas_op", 12),
+            "m2": params.get("m2", 100),
+            "num_empleados": params.get("num_empleados", 10),
+            "dias_cierre_semana": params.get("dias_cierre_semana", 0),
+            "presupuesto_venta_neta_mensual": params.get("presupuesto_venta_neta_mensual", 0),
+        }
+    return {"horas_op": 12, "m2": 100, "num_empleados": 10, "dias_cierre_semana": 0, "presupuesto_venta_neta_mensual": 0}
+
+
+def _save_restaurant_defaults(defaults: dict, local_key: str = "default"):
+    """Guarda parametros fijos del restaurante."""
+    today = date.today()
+    existing = _load_params(local_key, today.year, today.month)
+    merged = {**existing, **defaults}
+    _save_params(local_key, today.year, today.month, merged)
 
 
 def _load_restaurant_config() -> dict:
