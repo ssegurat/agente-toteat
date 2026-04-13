@@ -1080,7 +1080,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
                 if s["families"]:
                     df_f = pd.DataFrame([{"Familia": k, "Venta": v["revenue"], "Qty": v["qty"],
                                           "Costo": v["cost"]} for k, v in s["families"].items()])
-                    df_f["Margen"] = ((df_f["Venta"] - df_f["Costo"]) / df_f["Venta"] * 100).round(1)
+                    df_f["Margen"] = ((df_f["Venta"] - df_f["Costo"]) / df_f["Venta"].replace(0, float("nan")) * 100).round(1).fillna(0)
                     df_f = df_f.sort_values("Venta", ascending=True).tail(15)
 
                     fig = go.Figure(go.Bar(
@@ -1133,7 +1133,7 @@ def render_dashboard(client=None, local_key="default", local_name=None):
             if s["products"]:
                 df_prod = pd.DataFrame([{"Producto": k, "Cantidad": v["qty"], "Venta": v["revenue"],
                                          "Costo": v["cost"], "Familia": v["family"]} for k, v in s["products"].items()])
-                df_prod["Margen %"] = ((df_prod["Venta"] - df_prod["Costo"]) / df_prod["Venta"] * 100).round(1)
+                df_prod["Margen %"] = ((df_prod["Venta"] - df_prod["Costo"]) / df_prod["Venta"].replace(0, float("nan")) * 100).round(1).fillna(0)
                 df_prod = df_prod.sort_values("Venta", ascending=False).head(15)
 
                 fig = go.Figure(go.Bar(
@@ -2001,14 +2001,6 @@ def render_kpis(client=None, local_key="default", local_name=None):
             presupuesto_mensual = st.number_input("Presupuesto venta mensual (CLP)", min_value=0, step=1000000,
                                                    value=defaults.get("presupuesto_venta_neta_mensual", 0), key="input_presupuesto")
 
-    # Variables sin expander
-    if not month_expenses:
-        sueldos = month_expenses.get("sueldos", 0)
-        arriendo_uf = float(month_expenses.get("arriendo_uf", 0.0))
-        arriendo_clp = arriendo_uf * uf_val if uf_val else 0
-        servicios = month_expenses.get("servicios", 0)
-        otros = month_expenses.get("otros", 0)
-
     # Guardar automaticamente gastos del mes si cambiaron
     new_month_expenses = {
         "sueldos": sueldos, "arriendo_uf": arriendo_uf,
@@ -2553,7 +2545,7 @@ def render_consolidated_dashboard(clients, locals_config, allowed_locals):
                 if s["families"]:
                     df_f = pd.DataFrame([{"Familia": k, "Venta": v["revenue"], "Qty": v["qty"],
                                           "Costo": v["cost"]} for k, v in s["families"].items()])
-                    df_f["Margen"] = ((df_f["Venta"] - df_f["Costo"]) / df_f["Venta"] * 100).round(1)
+                    df_f["Margen"] = ((df_f["Venta"] - df_f["Costo"]) / df_f["Venta"].replace(0, float("nan")) * 100).round(1).fillna(0)
                     df_f = df_f.sort_values("Venta", ascending=True).tail(15)
 
                     fig = go.Figure(go.Bar(
@@ -2600,7 +2592,7 @@ def render_consolidated_dashboard(clients, locals_config, allowed_locals):
             if s["products"]:
                 df_prod = pd.DataFrame([{"Producto": k, "Cantidad": v["qty"], "Venta": v["revenue"],
                                          "Costo": v["cost"], "Familia": v["family"]} for k, v in s["products"].items()])
-                df_prod["Margen %"] = ((df_prod["Venta"] - df_prod["Costo"]) / df_prod["Venta"] * 100).round(1)
+                df_prod["Margen %"] = ((df_prod["Venta"] - df_prod["Costo"]) / df_prod["Venta"].replace(0, float("nan")) * 100).round(1).fillna(0)
                 df_prod = df_prod.sort_values("Venta", ascending=False).head(15)
 
                 fig = go.Figure(go.Bar(
