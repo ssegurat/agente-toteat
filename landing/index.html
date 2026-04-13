@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toteat AI — Inteligencia para tu restaurante</title>
+    <meta name="description" content="Dashboard de inteligencia para restaurantes Toteat. KPIs financieros, pronosticos, chat IA. Prueba gratis 7 dias.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --accent: #E8553D;
+            --accent-light: #F4A99E;
+            --accent-dark: #c44433;
+            --bg: #f5f3ef;
+            --card: #ffffff;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --border: #e8e4dd;
+            --success: #2E9E5E;
+            --warning: #E09A0C;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+        /* ── NAV ── */
+        nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: rgba(245,243,239,0.85); backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+        nav .container {
+            display: flex; align-items: center; justify-content: space-between;
+            height: 64px;
+        }
+        .nav-logo {
+            display: flex; align-items: center; gap: 10px;
+            text-decoration: none; color: var(--text);
+        }
+        .nav-logo-icon {
+            width: 36px; height: 36px; background: var(--accent);
+            border-radius: 10px; display: flex; align-items: center;
+            justify-content: center; color: white; font-weight: 700;
+            font-size: 18px; font-family: 'Space Grotesk', sans-serif;
+        }
+        .nav-logo-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.3rem; font-weight: 700;
+        }
+        .nav-logo-text span { color: var(--accent); }
+        nav a.btn-nav {
+            background: var(--accent); color: white; padding: 10px 24px;
+            border-radius: 8px; text-decoration: none; font-weight: 600;
+            font-size: 0.9rem; transition: all 0.2s;
+        }
+        nav a.btn-nav:hover { background: var(--accent-dark); }
+
+        /* ── HERO ── */
+        .hero {
+            padding: 140px 0 80px; text-align: center;
+        }
+        .hero-badge {
+            display: inline-block; background: rgba(232,85,61,0.08);
+            color: var(--accent); font-size: 0.85rem; font-weight: 600;
+            padding: 6px 16px; border-radius: 20px; margin-bottom: 24px;
+        }
+        .hero h1 {
+            font-size: clamp(2.2rem, 5vw, 3.5rem); font-weight: 700;
+            line-height: 1.15; margin-bottom: 20px; max-width: 800px;
+            margin-left: auto; margin-right: auto;
+        }
+        .hero h1 span { color: var(--accent); }
+        .hero p {
+            font-size: 1.15rem; color: var(--muted); max-width: 600px;
+            margin: 0 auto 32px; line-height: 1.7;
+        }
+        .hero-cta { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+        .btn-primary {
+            background: var(--accent); color: white; padding: 14px 32px;
+            border-radius: 10px; text-decoration: none; font-weight: 700;
+            font-size: 1rem; transition: all 0.2s; border: none; cursor: pointer;
+            box-shadow: 0 4px 16px rgba(232,85,61,0.25);
+        }
+        .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); }
+        .btn-secondary {
+            background: transparent; color: var(--text); padding: 14px 32px;
+            border-radius: 10px; text-decoration: none; font-weight: 600;
+            font-size: 1rem; border: 2px solid var(--border); transition: all 0.2s;
+        }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+        .hero-note {
+            margin-top: 16px; font-size: 0.85rem; color: var(--muted);
+        }
+
+        /* ── SOCIAL PROOF ── */
+        .social-proof {
+            padding: 40px 0; text-align: center;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+        .social-proof p { color: var(--muted); font-size: 0.9rem; margin-bottom: 12px; }
+        .proof-stats {
+            display: flex; justify-content: center; gap: 48px; flex-wrap: wrap;
+        }
+        .proof-stat { text-align: center; }
+        .proof-stat .num {
+            font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem;
+            font-weight: 700; color: var(--accent);
+        }
+        .proof-stat .label { font-size: 0.85rem; color: var(--muted); }
+
+        /* ── FEATURES ── */
+        .features { padding: 80px 0; }
+        .features h2 {
+            text-align: center; font-size: 2rem; margin-bottom: 12px;
+        }
+        .features > .container > p {
+            text-align: center; color: var(--muted); margin-bottom: 48px;
+            font-size: 1.05rem;
+        }
+        .features-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
+        .feature-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 32px;
+            transition: all 0.2s;
+        }
+        .feature-card:hover {
+            box-shadow: 0 8px 24px rgba(31,41,55,0.08);
+            transform: translateY(-2px);
+        }
+        .feature-icon {
+            width: 48px; height: 48px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; margin-bottom: 16px;
+        }
+        .feature-icon.red { background: rgba(232,85,61,0.1); }
+        .feature-icon.green { background: rgba(46,158,94,0.1); }
+        .feature-icon.yellow { background: rgba(224,154,12,0.1); }
+        .feature-icon.blue { background: rgba(59,130,246,0.1); }
+        .feature-card h3 {
+            font-size: 1.15rem; margin-bottom: 8px; font-weight: 600;
+        }
+        .feature-card p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+
+        /* ── HOW IT WORKS ── */
+        .how { padding: 80px 0; background: var(--card); border-top: 1px solid var(--border); }
+        .how h2 { text-align: center; font-size: 2rem; margin-bottom: 48px; }
+        .steps {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 32px; max-width: 900px; margin: 0 auto;
+        }
+        .step { text-align: center; }
+        .step-num {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: var(--accent); color: white; font-family: 'Space Grotesk';
+            font-weight: 700; font-size: 1.2rem; display: flex; align-items: center;
+            justify-content: center; margin: 0 auto 16px;
+        }
+        .step h3 { font-size: 1.05rem; margin-bottom: 8px; }
+        .step p { color: var(--muted); font-size: 0.9rem; }
+
+        /* ── PRICING ── */
+        .pricing { padding: 80px 0; }
+        .pricing h2 { text-align: center; font-size: 2rem; margin-bottom: 12px; }
+        .pricing > .container > p {
+            text-align: center; color: var(--muted); margin-bottom: 48px;
+        }
+        .pricing-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px; max-width: 960px; margin: 0 auto;
+        }
+        .price-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 32px; position: relative;
+        }
+        .price-card.popular {
+            border: 2px solid var(--accent);
+            box-shadow: 0 8px 32px rgba(232,85,61,0.12);
+        }
+        .price-badge {
+            position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+            background: var(--accent); color: white; padding: 4px 16px;
+            border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+        }
+        .price-card h3 { font-size: 1.2rem; margin-bottom: 4px; }
+        .price-card .desc { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
+        .price {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.5rem; font-weight: 700; margin-bottom: 4px;
+        }
+        .price span { font-size: 1rem; font-weight: 400; color: var(--muted); }
+        .price-period { color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; }
+        .price-features { list-style: none; margin-bottom: 24px; }
+        .price-features li {
+            padding: 8px 0; font-size: 0.9rem; color: var(--text);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .price-features li::before { content: "✓"; color: var(--success); font-weight: 700; }
+        .price-card .btn-primary { display: block; text-align: center; width: 100%; }
+        .price-card .btn-secondary { display: block; text-align: center; width: 100%; }
+
+        /* ── CTA FINAL ── */
+        .cta-final {
+            padding: 80px 0; text-align: center;
+            background: linear-gradient(135deg, #1f2937, #374151);
+            color: white;
+        }
+        .cta-final h2 { font-size: 2rem; margin-bottom: 16px; }
+        .cta-final p { color: rgba(255,255,255,0.7); margin-bottom: 32px; font-size: 1.05rem; }
+        .cta-final .btn-primary {
+            background: var(--accent); padding: 16px 40px; font-size: 1.1rem;
+        }
+
+        /* ── FOOTER ── */
+        footer {
+            padding: 32px 0; text-align: center; border-top: 1px solid var(--border);
+        }
+        footer p { color: var(--muted); font-size: 0.85rem; }
+        footer a { color: var(--accent); text-decoration: none; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+            .hero { padding: 100px 0 60px; }
+            .hero h1 { font-size: 2rem; }
+            .proof-stats { gap: 24px; }
+            .features-grid { grid-template-columns: 1fr; }
+            .pricing-grid { grid-template-columns: 1fr; max-width: 400px; }
+            .steps { grid-template-columns: 1fr; max-width: 320px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+    <div class="container">
+        <a href="#" class="nav-logo">
+            <div class="nav-logo-icon">t</div>
+            <div class="nav-logo-text">tot<span>eat</span> AI</div>
+        </a>
+        <a href="#pricing" class="btn-nav">Prueba gratis</a>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-badge">Nuevo producto para clientes Toteat</div>
+        <h1>La inteligencia que tu <span>restaurante</span> necesita</h1>
+        <p>Dashboard de KPIs financieros, pronosticos de venta y asistente IA. Todo conectado a tu Toteat en tiempo real.</p>
+        <div class="hero-cta">
+            <a href="#pricing" class="btn-primary">Prueba gratis 7 dias</a>
+            <a href="#features" class="btn-secondary">Ver funcionalidades</a>
+        </div>
+        <p class="hero-note">Sin tarjeta de credito. Cancela cuando quieras.</p>
+    </div>
+</section>
+
+<!-- SOCIAL PROOF -->
+<section class="social-proof">
+    <div class="container">
+        <p>Construido para la industria gastronomica de Latinoamerica</p>
+        <div class="proof-stats">
+            <div class="proof-stat">
+                <div class="num">3.500+</div>
+                <div class="label">Restaurantes en Toteat</div>
+            </div>
+            <div class="proof-stat">
+                <div class="num">6</div>
+                <div class="label">Paises</div>
+            </div>
+            <div class="proof-stat">
+                <div class="num">&lt;2 min</div>
+                <div class="label">Setup inicial</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+    <div class="container">
+        <h2>Todo lo que necesitas para tomar mejores decisiones</h2>
+        <p>Conectado directamente a tu Toteat. Sin exportar datos, sin planillas Excel.</p>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon red">📊</div>
+                <h3>Dashboard en tiempo real</h3>
+                <p>Venta neta, ordenes, ticket promedio, margen, propinas. Todo actualizado al minuto con comparacion vs periodos anteriores.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon green">📈</div>
+                <h3>Pronostico mensual</h3>
+                <p>Proyeccion de venta al cierre del mes basada en dias operados reales. Compara con tu presupuesto y ve si vas a cumplir la meta.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon yellow">💰</div>
+                <h3>KPIs financieros</h3>
+                <p>Food Cost, Labor Cost, Rent Cost, Prime Cost, Punto de Equilibrio. Con valores proyectados al cierre para que no te sorprendas.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon blue">💬</div>
+                <h3>Chat IA</h3>
+                <p>Preguntale a la IA sobre tu restaurante: "Como fue la venta de ayer?", "Cual es mi producto mas rentable?". Responde con datos reales.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon red">🏪</div>
+                <h3>Multi-sucursal</h3>
+                <p>Vista consolidada de toda tu red. Compara locales, identifica el mejor performer y detecta los que necesitan atencion.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon green">📱</div>
+                <h3>Mobile-first</h3>
+                <p>Disenado para que lo uses desde el celular. Graficos estaticos, touch-friendly, carga rapida. Revisa tus numeros en cualquier momento.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how">
+    <div class="container">
+        <h2>Funcionando en 2 minutos</h2>
+        <div class="steps">
+            <div class="step">
+                <div class="step-num">1</div>
+                <h3>Conecta tu Toteat</h3>
+                <p>Ingresa tu API Token y Restaurant ID. Tus datos se sincronizan automaticamente.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <h3>Configura tus gastos</h3>
+                <p>Sueldos, arriendo, servicios. Un wizard de 1 minuto para desbloquear KPIs financieros.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <h3>Toma decisiones</h3>
+                <p>Ve tus indicadores, pronosticos y alertas. Preguntale a la IA lo que necesites.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+    <div class="container">
+        <h2>Planes simples, sin letra chica</h2>
+        <p>Todos los planes incluyen 7 dias de prueba gratis</p>
+        <div class="pricing-grid">
+            <div class="price-card">
+                <h3>Starter</h3>
+                <p class="desc">Para restaurantes individuales</p>
+                <div class="price">$19 <span>USD/mes</span></div>
+                <p class="price-period">por usuario</p>
+                <ul class="price-features">
+                    <li>Dashboard en tiempo real</li>
+                    <li>KPIs financieros</li>
+                    <li>Pronostico mensual</li>
+                    <li>Chat IA con datos reales</li>
+                    <li>1 local</li>
+                    <li>Soporte por email</li>
+                </ul>
+                <a href="#" class="btn-secondary">Empezar prueba gratis</a>
+            </div>
+            <div class="price-card popular">
+                <div class="price-badge">Mas popular</div>
+                <h3>Professional</h3>
+                <p class="desc">Para cadenas y multi-local</p>
+                <div class="price">$49 <span>USD/mes</span></div>
+                <p class="price-period">por usuario</p>
+                <ul class="price-features">
+                    <li>Todo lo de Starter</li>
+                    <li>Vista multi-sucursal</li>
+                    <li>Hasta 10 locales</li>
+                    <li>Soporte prioritario</li>
+                </ul>
+                <a href="#" class="btn-primary">Empezar prueba gratis</a>
+            </div>
+            <div class="price-card">
+                <h3>Enterprise</h3>
+                <p class="desc">Para grandes cadenas (+10 locales)</p>
+                <div class="price" style="font-size:1.8rem;">Calcula tu precio</div>
+                <p class="price-period">descuento por volumen automatico</p>
+
+                <div style="margin-bottom:16px;">
+                    <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:4px;">Locales</label>
+                    <input type="range" id="calc-locales" min="11" max="100" value="20"
+                        style="width:100%;accent-color:var(--accent);"
+                        oninput="calcEnterprise()">
+                    <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);">
+                        <span>11</span><span id="calc-locales-val" style="font-weight:700;color:var(--text);">20</span><span>100</span>
+                    </div>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:4px;">Usuarios</label>
+                    <input type="range" id="calc-usuarios" min="5" max="200" value="30"
+                        style="width:100%;accent-color:var(--accent);"
+                        oninput="calcEnterprise()">
+                    <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);">
+                        <span>5</span><span id="calc-usuarios-val" style="font-weight:700;color:var(--text);">30</span><span>200</span>
+                    </div>
+                </div>
+
+                <div id="calc-result" style="background:var(--bg);border-radius:12px;padding:16px;text-align:center;margin-bottom:16px;">
+                    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:4px;">Precio por usuario</div>
+                    <div style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:700;color:var(--text);">
+                        $<span id="calc-ppu">39</span> <span style="font-size:0.85rem;font-weight:400;color:var(--muted);">USD/mes</span>
+                    </div>
+                    <div style="font-size:0.85rem;color:var(--accent);font-weight:600;margin-top:4px;">
+                        Total: $<span id="calc-total">1,170</span>/mes
+                    </div>
+                    <div style="font-size:0.75rem;color:var(--success);margin-top:4px;" id="calc-ahorro"></div>
+                </div>
+
+                <ul class="price-features">
+                    <li>Todo lo de Professional</li>
+                    <li>Locales ilimitados</li>
+                    <li>API propia</li>
+                    <li>Account manager dedicado</li>
+                </ul>
+                <a href="mailto:sebastian@toteat.com" class="btn-secondary">Contactar ventas</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="cta-final">
+    <div class="container">
+        <h2>Empieza a tomar decisiones con datos</h2>
+        <p>7 dias gratis. Sin tarjeta de credito. Setup en 2 minutos.</p>
+        <a href="#" class="btn-primary">Comenzar prueba gratis</a>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+    <div class="container">
+        <p>tot<span style="color:var(--accent)">eat</span> AI &copy; 2026 — <a href="https://toteat.com">toteat.com</a></p>
+    </div>
+</footer>
+
+<!-- Smooth scroll + Enterprise calculator -->
+<script>
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+        e.preventDefault();
+        document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth' });
+    });
+});
+
+function calcEnterprise() {
+    const locales = parseInt(document.getElementById('calc-locales').value);
+    const usuarios = parseInt(document.getElementById('calc-usuarios').value);
+
+    document.getElementById('calc-locales-val').textContent = locales;
+    document.getElementById('calc-usuarios-val').textContent = usuarios;
+
+    // Precio por usuario segun volumen de locales
+    // Margen bruto minimo 75% (costo ~$5/usuario → precio minimo ~$20)
+    let ppu;
+    if (locales <= 25) {
+        ppu = 39;       // 11-25 locales: $39 (margen 87%)
+    } else if (locales <= 50) {
+        ppu = 35;       // 26-50 locales: $35 (margen 86%)
+    } else if (locales <= 75) {
+        ppu = 29;       // 51-75 locales: $29 (margen 83%)
+    } else {
+        ppu = 25;       // 76+ locales: $25 (margen 80%)
+    }
+
+    const total = ppu * usuarios;
+    const sinDescuento = 49 * usuarios;
+    const ahorro = sinDescuento - total;
+    const ahorroPct = Math.round((ahorro / sinDescuento) * 100);
+
+    document.getElementById('calc-ppu').textContent = ppu;
+    document.getElementById('calc-total').textContent = total.toLocaleString('en-US');
+    document.getElementById('calc-ahorro').textContent =
+        ahorro > 0 ? 'Ahorras $' + ahorro.toLocaleString('en-US') + '/mes vs Professional (' + ahorroPct + '%)' : '';
+}
+
+calcEnterprise();
+</script>
+
+</body>
+</html>
