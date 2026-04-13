@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -13,6 +14,8 @@ from datetime import date, timedelta
 import time
 
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
 
 # ──────────────────────────────────────────────
 # PAGE CONFIG
@@ -353,9 +356,15 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 SYSTEM_PROMPT = f"""Eres un asistente inteligente para restaurantes que usan Toteat como sistema POS.
 Hoy es {date.today().isoformat()}.
-Responde siempre en espanol. Usa las herramientas para consultar datos.
+Responde siempre en espanol.
 Si el usuario dice "hoy", "ayer", "esta semana", calcula las fechas correctas.
-Presenta los datos de forma clara con tablas cuando sea apropiado.
+
+REGLAS PARA DATOS FINANCIEROS:
+1. Para preguntas sobre ventas, SIEMPRE usa la herramienta "get_sales". NO uses get_collection ni get_sales_by_waiter para reportar ventas totales.
+2. La herramienta get_sales retorna texto con cifras PRE-CALCULADAS y exactas.
+3. COPIA los numeros EXACTAMENTE como aparecen en la respuesta de la herramienta. Ejemplo: si dice "Venta neta: $6.382.300", tu respuesta debe decir "$6.382.300".
+4. NUNCA calcules, estimes, redondees ni modifiques cifras financieras.
+5. NUNCA inventes datos. Si la herramienta no retorna un dato, di que no esta disponible.
 """
 
 PLOTLY_LAYOUT = dict(
@@ -1751,9 +1760,12 @@ def render_chat(client=None, local_key="default", local_name=None):
                     while response.stop_reason == "tool_use":
                         tbs = [b for b in response.content if b.type == "tool_use"]
                         api_messages.append({"role": "assistant", "content": response.content})
-                        trs = [{"type": "tool_result", "tool_use_id": tb.id,
-                                "content": execute_tool(tb.name, tb.input, chat_client)} for tb in tbs]
-                        api_messages.append({"role": "user", "content": trs})
+                        tool_results = []
+                        for tb in tbs:
+                            tr_content = execute_tool(tb.name, tb.input, chat_client)
+                            print(f"[DEBUG TOOL] {tb.name}({tb.input}) → {tr_content[:200]}...")
+                            tool_results.append({"type": "tool_result", "tool_use_id": tb.id, "content": tr_content})
+                        api_messages.append({"role": "user", "content": tool_results})
                         response = st.session_state.anthropic_client.messages.create(
                             model="claude-sonnet-4-20250514", max_tokens=4096,
                             system=system_prompt, tools=TOOLS, messages=api_messages)
