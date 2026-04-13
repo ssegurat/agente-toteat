@@ -222,23 +222,32 @@ def _summarize_sales(orders: list) -> str:
     if not orders:
         return "No hay ventas en el período consultado."
 
-    total_sales = sum(o.get("total", 0) for o in orders)
+    venta_bruta = sum(o.get("total", 0) for o in orders)
     total_gratuity = sum(o.get("gratuity", 0) for o in orders)
     total_discounts = sum(o.get("discounts", 0) for o in orders)
     total_cost = sum(o.get("totalCost", 0) for o in orders)
     total_clients = sum(o.get("numberClients", 0) for o in orders)
     num_orders = len(orders)
-    avg_ticket = round(total_sales / num_orders) if num_orders else 0
-    avg_per_client = round(total_sales / total_clients) if total_clients else 0
-    margin_pct = round((total_sales - total_cost) / total_sales * 100, 1) if total_sales else 0
+
+    # IVA Chile 19%: venta neta = (bruta + descuentos) / 1.19
+    venta_con_descuento = venta_bruta + total_discounts
+    iva = round(venta_con_descuento - venta_con_descuento / 1.19)
+    venta_neta = round(venta_con_descuento / 1.19)
+
+    avg_ticket = round(venta_bruta / num_orders) if num_orders else 0
+    avg_per_client = round(venta_bruta / total_clients) if total_clients else 0
+    margin_pct = round((venta_neta - total_cost) / venta_neta * 100, 1) if venta_neta else 0
 
     lines = [
         "=== RESUMEN DE VENTAS (datos exactos, NO modificar) ===",
-        f"Venta neta: {_fmt(total_sales)}",
-        f"Propinas: {_fmt(total_gratuity)}",
+        f"Venta bruta: {_fmt(venta_bruta)}",
         f"Descuentos: {_fmt(total_discounts)}",
+        f"Venta bruta (c/IVA): {_fmt(venta_con_descuento)}",
+        f"IVA (19%): {_fmt(iva)}",
+        f"Venta neta (s/IVA): {_fmt(venta_neta)}",
         f"Costo productos: {_fmt(total_cost)}",
         f"Margen: {margin_pct}%",
+        f"Propinas: {_fmt(total_gratuity)}",
         f"Numero de ordenes: {num_orders}",
         f"Numero de clientes: {total_clients}",
         f"Ticket promedio: {_fmt(avg_ticket)}",
@@ -274,7 +283,7 @@ def _summarize_sales(orders: list) -> str:
     if top:
         lines.append("\n=== TOP 10 PRODUCTOS ===")
         for name, data in top:
-            lines.append(f"- {name}: {data['qty']} uds, {_fmt(data['revenue'])}")
+            lines.append(f"- {name}: {data['qty']} unidades, {_fmt(data['revenue'])}")
 
     # Ventas por hora
     hourly = {}

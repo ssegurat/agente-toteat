@@ -33,9 +33,11 @@ def test_summarize_sales_exact_numbers():
     result = _summarize_sales(SAMPLE_ORDERS)
 
     assert isinstance(result, str), "Debe retornar string, no dict/JSON"
-    assert "Venta neta: $450.000" in result
-    assert "Propinas: $45.000" in result
+    assert "Venta bruta: $450.000" in result
     assert "Descuentos: $-15.000" in result
+    assert "Venta bruta (c/IVA): $435.000" in result
+    assert "Venta neta (s/IVA): $365.546" in result
+    assert "Propinas: $45.000" in result
     assert "Costo productos: $135.000" in result
     assert "Numero de ordenes: 3" in result
     assert "Numero de clientes: 10" in result
@@ -57,9 +59,9 @@ def test_summarize_sales_top_products():
 
     result = _summarize_sales(SAMPLE_ORDERS)
 
-    assert "Roll Acevichado: 5 uds, $70.000" in result
-    assert "Gyozas: 4 uds, $50.000" in result
-    assert "Ceviche Clásico: 1 uds, $15.000" in result
+    assert "Roll Acevichado: 5 unidades, $70.000" in result
+    assert "Gyozas: 4 unidades, $50.000" in result
+    assert "Ceviche Clásico: 1 unidades, $15.000" in result
 
 
 def test_summarize_sales_hourly():
@@ -100,7 +102,8 @@ def test_execute_tool_get_sales_returns_text():
 
     # NO debe ser JSON parseable como dict (debe ser texto plano)
     assert result.startswith("=== RESUMEN DE VENTAS")
-    assert "Venta neta: $450.000" in result
+    assert "Venta bruta: $450.000" in result
+    assert "Venta neta (s/IVA): $365.546" in result
     assert "Numero de ordenes: 3" in result
 
 
@@ -137,8 +140,8 @@ def test_margin_calculation():
     from tools import _summarize_sales
 
     result = _summarize_sales(SAMPLE_ORDERS)
-    # Margen = (450000 - 135000) / 450000 * 100 = 70.0%
-    assert "Margen: 70.0%" in result
+    # Margen = (365546 - 135000) / 365546 * 100 = 63.1%
+    assert "Margen: 63.1%" in result
 
 
 # ── Test 5: Con datos reales de la API (si las credenciales están disponibles) ──
@@ -163,7 +166,8 @@ def test_real_api_april_12():
 
     result = execute_tool("get_sales", {"date_from": "2026-04-12", "date_to": "2026-04-12"}, client)
 
-    assert "Venta neta: $6.382.300" in result
+    assert "Venta bruta: $6.382.300" in result
+    assert "Venta neta (s/IVA): $5.155.618" in result
     assert "Numero de ordenes: 56" in result
     assert "Propinas: $590.180" in result
     assert "Numero de clientes: 157" in result
