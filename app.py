@@ -365,6 +365,8 @@ REGLAS PARA DATOS FINANCIEROS:
 3. COPIA los numeros EXACTAMENTE como aparecen en la respuesta de la herramienta. Ejemplo: si dice "Venta neta: $6.382.300", tu respuesta debe decir "$6.382.300".
 4. NUNCA calcules, estimes, redondees ni modifiques cifras financieras.
 5. NUNCA inventes datos. Si la herramienta no retorna un dato, di que no esta disponible.
+6. SIEMPRE muestra AMBOS valores: "Venta bruta" Y "Venta neta (s/IVA)". Nunca omitas uno de los dos.
+7. Al comparar periodos de distinta duracion (ej: 13 dias de abril vs 31 de marzo), SIEMPRE compara los mismos dias. Ejemplo: para comparar abril vs marzo, compara del 1 al 13 de cada mes. NUNCA compares un mes parcial contra un mes completo sin advertirlo.
 """
 
 PLOTLY_LAYOUT = dict(
