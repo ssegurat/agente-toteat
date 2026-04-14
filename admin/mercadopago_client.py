@@ -1,10 +1,11 @@
 """Wrapper para la API de Mercado Pago — suscripciones recurrentes."""
 from __future__ import annotations
 
+import functools
 import logging
+import os
 from urllib.parse import urlencode
 
-import streamlit as st
 import requests
 
 logger = logging.getLogger("toteat.mercadopago")
@@ -26,12 +27,21 @@ PLAN_PRICES_USD = {
 }
 
 
-@st.cache_resource
+@functools.lru_cache(maxsize=1)
 def _get_session() -> requests.Session:
-    """Session HTTP pre-configurada con Bearer token de MP."""
-    token = st.secrets.get("MP_ACCESS_TOKEN", "")
+    """Session HTTP pre-configurada con Bearer token de MP.
+
+    Lee de os.environ o st.secrets (compatible con Streamlit y cron).
+    """
+    token = os.environ.get("MP_ACCESS_TOKEN", "")
     if not token:
-        logger.warning("MP_ACCESS_TOKEN no configurado en secrets")
+        try:
+            import streamlit as st
+            token = st.secrets.get("MP_ACCESS_TOKEN", "")
+        except Exception:
+            pass
+    if not token:
+        logger.warning("MP_ACCESS_TOKEN no configurado")
     session = requests.Session()
     session.headers.update({
         "Authorization": f"Bearer {token}",
@@ -41,26 +51,65 @@ def _get_session() -> requests.Session:
     return session
 
 
+MAX_RETRIES = 3
+RETRY_BACKOFF = [1, 3, 8]
+
+
 def _request(method: str, path: str, json_data: dict | None = None, timeout: int = 15) -> dict:
-    """Request generico a MP con logging y error handling."""
+    """Request a MP con retry en errores transitorios (429, 5xx, timeout)."""
     url = f"{MP_BASE_URL}{path}"
     session = _get_session()
-    try:
-        resp = session.request(method, url, json=json_data, timeout=timeout)
-        logger.info("[MP %s] %s → %d", method, path, resp.status_code)
-        resp.raise_for_status()
-        return resp.json()
-    except requests.exceptions.HTTPError as e:
-        body = {}
+
+    for attempt in range(MAX_RETRIES):
         try:
-            body = e.response.json()
-        except Exception:
-            pass
-        logger.error("[MP ERROR] %s %s → %d: %s", method, path, e.response.status_code, body)
-        return {"error": True, "status_code": e.response.status_code, "detail": body}
-    except Exception as e:
-        logger.error("[MP ERROR] %s %s → %s", method, path, e)
-        return {"error": True, "detail": str(e)}
+            resp = session.request(method, url, json=json_data, timeout=timeout)
+            logger.info("[MP %s] %s → %d", method, path, resp.status_code)
+
+            # Retry en 429 (rate limit) y 5xx (server error)
+            if resp.status_code == 429 or resp.status_code >= 500:
+                wait = RETRY_BACKOFF[min(attempt, len(RETRY_BACKOFF) - 1)]
+                retry_after = resp.headers.get("Retry-After")
+                if retry_after and retry_after.isdigit():
+                    wait = int(retry_after)
+                logger.warning("[MP RETRY] %s %s → %d, esperando %ds", method, path, resp.status_code, wait)
+                import time
+                time.sleep(wait)
+                continue
+
+            resp.raise_for_status()
+            return resp.json()
+
+        except requests.exceptions.Timeout:
+            logger.error("[MP TIMEOUT] %s %s (intento %d/%d)", method, path, attempt + 1, MAX_RETRIES)
+            if attempt < MAX_RETRIES - 1:
+                import time
+                time.sleep(RETRY_BACKOFF[attempt])
+                continue
+            return {"error": True, "error_type": "timeout", "detail": "timeout after retries"}
+
+        except requests.exceptions.ConnectionError:
+            logger.error("[MP CONNECTION] %s %s (intento %d/%d)", method, path, attempt + 1, MAX_RETRIES)
+            if attempt < MAX_RETRIES - 1:
+                import time
+                time.sleep(RETRY_BACKOFF[attempt])
+                continue
+            return {"error": True, "error_type": "connection", "detail": "connection error after retries"}
+
+        except requests.exceptions.HTTPError as e:
+            body = {}
+            try:
+                body = e.response.json()
+            except Exception:
+                pass
+            logger.error("[MP ERROR] %s %s → %d: %s", method, path, e.response.status_code, body)
+            return {"error": True, "status_code": e.response.status_code, "detail": body}
+
+        except Exception as e:
+            logger.error("[MP ERROR] %s %s → %s", method, path, type(e).__name__)
+            return {"error": True, "detail": type(e).__name__}
+
+    # Agotamos retries (por 429/5xx)
+    return {"error": True, "error_type": "max_retries", "detail": f"failed after {MAX_RETRIES} attempts"}
 
 
 # ── Suscripciones (preapproval) ──

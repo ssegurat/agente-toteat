@@ -102,12 +102,13 @@ def sync_payments_for_subscription(sb, subscription: dict) -> dict:
     if not mp_payments:
         return {"new_payments": 0}
 
-    # Obtener mp_payment_ids ya registrados
+    # Obtener mp_payment_ids ya registrados — NO swallow errors (causa duplicados)
     try:
         existing = sb.table("payments").select("mp_payment_id").eq("subscription_id", sub_id).execute()
         existing_ids = {p["mp_payment_id"] for p in (existing.data or []) if p.get("mp_payment_id")}
-    except Exception:
-        existing_ids = set()
+    except Exception as e:
+        logger.error("[SYNC] No se pudieron leer pagos existentes para sub %s: %s", sub_id, e)
+        return {"new_payments": 0, "reason": f"error leyendo existentes: {e}"}
 
     new_count = 0
     for mp_pay in mp_payments:

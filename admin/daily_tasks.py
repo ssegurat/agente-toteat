@@ -41,12 +41,35 @@ def _get_toteat_client(restaurant: dict):
     )
 
 
+def _already_sent_today(sb, restaurant_id: str, email_date: str) -> bool:
+    """Verifica si ya se envio email para este restaurante y fecha (idempotencia)."""
+    try:
+        result = sb.table("usage_logs").select("id").eq("action", "daily_email").eq("restaurant_id", restaurant_id).gte("timestamp", f"{email_date}T00:00:00").lte("timestamp", f"{email_date}T23:59:59").limit(1).execute()
+        return bool(result.data)
+    except Exception:
+        return False  # Si no podemos verificar, permitir envio
+
+
+def _mark_sent(sb, restaurant_id: str, user_id: str | None = None) -> None:
+    """Registra que se envio el email diario (para idempotencia)."""
+    try:
+        sb.table("usage_logs").insert({
+            "action": "daily_email",
+            "restaurant_id": restaurant_id,
+            "user_id": user_id,
+            "metadata": {"date": date.today().isoformat()},
+        }).execute()
+    except Exception as e:
+        logger.warning("[DAILY] No se pudo registrar envio: %s", e)
+
+
 def send_daily_sales_emails(sb) -> dict:
-    """Envia email diario de ventas a todas las empresas activas/trial."""
-    from email_service import send_daily_sales, _fmt_clp
+    """Envia email diario de ventas a todas las empresas activas/trial. Idempotente."""
+    from email_service import send_daily_sales
 
     yesterday = (date.today() - timedelta(days=1)).isoformat()
     sent = 0
+    skipped = 0
     errors = []
 
     # Obtener empresas activas o en trial
@@ -62,6 +85,13 @@ def send_daily_sales_emails(sb) -> dict:
         restaurants = sb.table("restaurants").select("*").eq("company_id", company_id).eq("status", "active").execute()
 
         for rest in (restaurants.data or []):
+            rest_id = rest.get("id", "")
+
+            # Idempotencia: no reenviar si ya se mando hoy
+            if _already_sent_today(sb, rest_id, date.today().isoformat()):
+                skipped += 1
+                continue
+
             try:
                 client = _get_toteat_client(rest)
                 raw = client.get_sales(yesterday, yesterday)
@@ -106,6 +136,7 @@ def send_daily_sales_emails(sb) -> dict:
                 )
                 if ok:
                     sent += 1
+                    _mark_sent(sb, rest_id)
                 else:
                     errors.append(f"{rest.get('name')}: email no enviado")
             except Exception as e:
@@ -113,8 +144,8 @@ def send_daily_sales_emails(sb) -> dict:
                 errors.append(f"{rest.get('name', '?')}: {safe_err}")
                 logger.error("[DAILY] Error procesando %s: %s", rest.get("name"), safe_err)
 
-    logger.info("[DAILY] Emails de ventas enviados: %d, errores: %d", sent, len(errors))
-    return {"sent": sent, "errors": errors}
+    logger.info("[DAILY] Emails de ventas: %d enviados, %d omitidos (ya enviados), %d errores", sent, skipped, len(errors))
+    return {"sent": sent, "skipped": skipped, "errors": errors}
 
 
 def send_trial_reminders(sb) -> dict:

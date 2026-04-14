@@ -7,21 +7,31 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-import streamlit as st
+import os
 
 logger = logging.getLogger("toteat.email")
 
 # ── Configuracion ──
 
 def _get_smtp_config() -> dict:
-    """Lee config SMTP desde secrets."""
+    """Lee config SMTP desde env vars o st.secrets (compatible con cron y Streamlit)."""
+    def _get(key: str, default: str = "") -> str:
+        val = os.environ.get(key, "")
+        if val:
+            return val
+        try:
+            import streamlit as st
+            return st.secrets.get(key, default)
+        except Exception:
+            return default
+
     return {
-        "host": st.secrets.get("SMTP_HOST", "smtp.gmail.com"),
-        "port": int(st.secrets.get("SMTP_PORT", 587)),
-        "user": st.secrets.get("SMTP_USER", ""),
-        "password": st.secrets.get("SMTP_PASSWORD", ""),
-        "from_email": st.secrets.get("EMAIL_FROM", "hola@toteat-ia.com"),
-        "from_name": st.secrets.get("EMAIL_FROM_NAME", "Toteat Intelligence"),
+        "host": _get("SMTP_HOST", "smtp.gmail.com"),
+        "port": int(_get("SMTP_PORT", "587")),
+        "user": _get("SMTP_USER"),
+        "password": _get("SMTP_PASSWORD"),
+        "from_email": _get("EMAIL_FROM", "hola@toteat-ia.com"),
+        "from_name": _get("EMAIL_FROM_NAME", "Toteat Intelligence"),
     }
 
 
