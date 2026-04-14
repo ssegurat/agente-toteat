@@ -3287,6 +3287,95 @@ Responde siempre en espanol.
 
 
 # ──────────────────────────────────────────────
+# ──────────────────────────────────────────────
+# TRIAL GATE — bloqueo post-trial
+# ──────────────────────────────────────────────
+
+def _check_trial_status(token: str) -> dict | None:
+    """Consulta Supabase para verificar si el usuario tiene trial vencido.
+
+    Retorna dict con info de la empresa o None si no aplica bloqueo.
+    """
+    if not _supabase or not token:
+        return None
+    try:
+        user_result = _supabase.table("users").select("company_id").eq("token", token).limit(1).execute()
+        if not user_result.data:
+            return None
+        company_id = user_result.data[0].get("company_id")
+        if not company_id:
+            return None
+
+        company_result = _supabase.table("companies").select("*").eq("id", company_id).limit(1).execute()
+        if not company_result.data:
+            return None
+
+        company = company_result.data[0]
+        status = (company.get("status") or "").lower()
+        trial_ends = company.get("trial_ends_at")
+
+        if status != "trial" or not trial_ends:
+            return None  # No es trial o no tiene fecha — no bloquear
+
+        from datetime import datetime, timezone
+        trial_end_dt = datetime.fromisoformat(trial_ends.replace("Z", "+00:00"))
+        if trial_end_dt > datetime.now(timezone.utc):
+            return None  # Trial aun vigente — no bloquear
+
+        # Trial vencido — verificar si tiene suscripcion activa
+        sub_result = _supabase.table("subscriptions").select("status").eq("company_id", company_id).execute()
+        has_active = any((s.get("status") or "").lower() in ("authorized", "active") for s in (sub_result.data or []))
+        if has_active:
+            return None  # Tiene suscripcion — no bloquear
+
+        return company  # Trial vencido sin suscripcion — BLOQUEAR
+    except Exception:
+        return None  # En caso de error, no bloquear (fail open)
+
+
+def _render_trial_expired_view(client, local_key: str = "default"):
+    """Vista bloqueada post-trial: solo venta del dia, nada mas."""
+    st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+    st.markdown(f'''<div style="text-align:center;padding:20px;">
+        <div class="toteat-brand">
+            <div class="toteat-logo-icon">t</div>
+            <div>
+                <div class="toteat-title">tot<span>eat</span> <span>AI</span></div>
+                <div class="toteat-subtitle">Tu trial ha expirado</div>
+            </div>
+        </div>
+    </div>''', unsafe_allow_html=True)
+
+    # Mostrar solo la venta del dia
+    try:
+        today_str = date.today().isoformat()
+        if client:
+            raw = client.get_sales(today_str, today_str)
+            orders = raw.get("data", []) if isinstance(raw, dict) else raw if isinstance(raw, list) else []
+            venta_bruta = sum(o.get("total", 0) for o in orders)
+        else:
+            venta_bruta = 0
+
+        st.markdown(f'''<div style="text-align:center;margin:40px 0;">
+            <div style="font-size:14px;color:#6b7280;text-transform:uppercase;">Venta de hoy</div>
+            <div style="font-size:48px;font-weight:800;color:#E8553D;margin:8px 0;">${int(venta_bruta):,}</div>
+            <div style="font-size:13px;color:#9ca3af;">{date.today().strftime("%d de %B, %Y")}</div>
+        </div>'''.replace(",", "."), unsafe_allow_html=True)
+    except Exception:
+        st.info("No se pudo obtener la venta del dia.")
+
+    # Banner de upgrade
+    st.markdown(f'''<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:24px;text-align:center;margin:20px 0;">
+        <div style="font-size:24px;">🔒</div>
+        <div style="font-size:18px;font-weight:700;color:#1a1a1a;margin:8px 0;">Suscribete para ver todo el detalle</div>
+        <div style="color:#6b7280;font-size:14px;">Chat IA, KPIs gastronomicos, detalle por mesero, producto, hora y mas.</div>
+        <div style="margin-top:16px;">
+            <span style="background:#E8553D;color:white;padding:10px 28px;border-radius:8px;font-weight:700;">Desde $19 USD/mes</span>
+        </div>
+    </div>''', unsafe_allow_html=True)
+
+
+# ──────────────────────────────────────────────
 # MAIN
 # ──────────────────────────────────────────────
 
@@ -3311,6 +3400,15 @@ def main():
                     <div style="font-size:1.2rem;font-weight:700;color:#1a1a1a;margin-top:12px;">Acceso restringido</div>
                     <div style="color:#6b7280;margin-top:8px;">Necesitas un enlace de acceso para usar esta aplicacion.<br>Contacta al administrador para obtener tu enlace.</div>
                 </div>''', unsafe_allow_html=True)
+            return
+
+        # ── Trial gate: verificar si el trial vencio ──
+        expired_company = _check_trial_status(token)
+        if expired_company:
+            locals_config = load_locals_config()
+            clients = get_clients_for_locals(allowed_locals, locals_config)
+            first_client = next(iter(clients.values()), None)
+            _render_trial_expired_view(first_client, local_key=allowed_locals[0] if allowed_locals else "default")
             return
 
         locals_config = load_locals_config()

@@ -13,6 +13,12 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from supabase_client import get_supabase
+from mercadopago_client import (
+    create_subscription, get_subscription, pause_subscription,
+    cancel_subscription, reactivate_subscription,
+    COUNTRY_CURRENCY, PLAN_PRICES_USD,
+)
+from mp_sync import sync_all_subscriptions, sync_all_payments, check_trial_expirations
 
 # Agregar path padre para importar ToteatAPI
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -576,7 +582,7 @@ with tab_empresas:
 
         for c in filtered:
             with st.container():
-                cols = st.columns([2.2, 0.7, 1.3, 2.2, 0.8, 0.8, 1.1, 0.9])
+                cols = st.columns([2.0, 0.6, 1.2, 2.0, 0.8, 0.8, 1.0, 0.8, 0.8])
                 with cols[0]:
                     st.markdown(f"**{c.get('name', 'N/A')}**")
                 with cols[1]:
@@ -611,6 +617,9 @@ with tab_empresas:
                 with cols[7]:
                     if st.button("✏️ Editar", key=f"edit_{cid}", use_container_width=True):
                         st.session_state[f"editing_company_{cid}"] = True
+                with cols[8]:
+                    if st.button("💳 MP", key=f"mp_{cid}", use_container_width=True):
+                        st.session_state[f"show_mp_{cid}"] = True
                 st.markdown("<hr style='margin:0;border:none;border-top:1px solid #e5e7eb'>", unsafe_allow_html=True)
 
                 # Formulario de edicion inline
@@ -655,6 +664,98 @@ with tab_empresas:
                         if cancel:
                             st.session_state[f"editing_company_{cid}"] = False
                             st.rerun()
+
+                # ── Suscripcion Mercado Pago (inline) ──
+                if st.session_state.get(f"show_mp_{cid}", False):
+                    company_country = c.get("country", "CL") or "CL"
+                    company_email = c.get("contact_email", "")
+                    company_plan = c.get("plan", "starter")
+                    currency = COUNTRY_CURRENCY.get(company_country, "CLP")
+
+                    existing_sub = safe_query(lambda cid=cid: sb.table("subscriptions").select("*").eq("company_id", cid).order("created_at", desc=True).limit(1).execute())
+
+                    if existing_sub:
+                        sub = existing_sub[0]
+                        sub_status = (sub.get("status") or "pending").lower()
+                        mp_id = sub.get("mp_subscription_id", "")
+                        init_point = sub.get("mp_init_point", "")
+
+                        st.markdown(f"**Suscripcion MP:** {status_badge(sub_status)} `{(mp_id or '—')[:16]}`", unsafe_allow_html=True)
+                        if sub_status == "pending" and init_point:
+                            st.info(f"📎 Link de pago: {init_point}")
+
+                        mp_cols = st.columns(3)
+                        with mp_cols[0]:
+                            if mp_id and st.button("🔄 Sync", key=f"sync_mp_{cid}"):
+                                from mp_sync import sync_subscription_status
+                                r = sync_subscription_status(sb, sub)
+                                st.toast(f"{'Actualizado' if r.get('updated') else 'Sin cambios'}: {r.get('new_status', r.get('reason', ''))}")
+                                st.rerun()
+                        with mp_cols[1]:
+                            if sub_status == "authorized" and st.button("⏸️ Pausar", key=f"pause_mp_{cid}"):
+                                res = pause_subscription(mp_id)
+                                if not res.get("error"):
+                                    sb.table("subscriptions").update({"status": "paused"}).eq("id", sub["id"]).execute()
+                                    st.toast("Suscripcion pausada")
+                                    st.rerun()
+                            elif sub_status == "paused" and st.button("▶️ Reactivar", key=f"react_mp_{cid}"):
+                                res = reactivate_subscription(mp_id)
+                                if not res.get("error"):
+                                    sb.table("subscriptions").update({"status": "authorized"}).eq("id", sub["id"]).execute()
+                                    st.toast("Reactivada")
+                                    st.rerun()
+                        with mp_cols[2]:
+                            if sub_status in ("authorized", "paused", "pending") and st.button("❌ Cancelar", key=f"cancel_mp_{cid}"):
+                                res = cancel_subscription(mp_id)
+                                if not res.get("error"):
+                                    sb.table("subscriptions").update({"status": "cancelled"}).eq("id", sub["id"]).execute()
+                                    st.toast("Cancelada")
+                                    st.rerun()
+                    else:
+                        with st.form(f"form_mp_{cid}"):
+                            st.markdown("**Crear Suscripcion Mercado Pago**")
+                            fmp1, fmp2 = st.columns(2)
+                            with fmp1:
+                                mp_plan = st.selectbox("Plan", ["starter", "professional", "enterprise"], key=f"mp_plan_{cid}",
+                                                       index=max(0, ["starter", "professional", "enterprise"].index(company_plan)) if company_plan in ["starter", "professional", "enterprise"] else 0)
+                                mp_price = st.number_input("Precio (USD)", value=PLAN_PRICES_USD.get(mp_plan, 19), min_value=1, key=f"mp_price_{cid}")
+                            with fmp2:
+                                mp_email = st.text_input("Email pagador", value=company_email, key=f"mp_email_{cid}")
+                                mp_trial = st.checkbox("Incluir 7 dias gratis", value=True, key=f"mp_trial_{cid}")
+
+                            if st.form_submit_button("Crear Suscripcion", use_container_width=True) and mp_email:
+                                ext_ref = f"toteat_{cid}_{mp_plan}"
+                                back_url = st.secrets.get("MP_BACK_URL", "https://toteat-ia.streamlit.app")
+                                result = create_subscription(
+                                    payer_email=mp_email,
+                                    reason=f"Toteat Intelligence - Plan {mp_plan.title()}",
+                                    amount=mp_price,
+                                    currency_id=currency,
+                                    external_reference=ext_ref,
+                                    back_url=back_url,
+                                    free_trial_days=7 if mp_trial else None,
+                                )
+                                if result.get("error"):
+                                    st.error(f"Error: {result.get('detail', result)}")
+                                else:
+                                    sb.table("subscriptions").insert({
+                                        "company_id": cid,
+                                        "mp_subscription_id": result.get("id"),
+                                        "mp_init_point": result.get("init_point"),
+                                        "mp_customer_id": str(result.get("payer_id", "")),
+                                        "price_usd": mp_price,
+                                        "amount_local": mp_price,
+                                        "currency_id": currency,
+                                        "plan": mp_plan,
+                                        "external_reference": ext_ref,
+                                        "status": "pending",
+                                        "trial_ends_at": (datetime.now() + timedelta(days=7)).isoformat() if mp_trial else None,
+                                    }).execute()
+                                    sb.table("companies").update({"plan": mp_plan}).eq("id", cid).execute()
+                                    st.success("Suscripcion creada!")
+                                    st.code(result.get("init_point", ""), language=None)
+                                    st.rerun()
+                    st.session_state[f"show_mp_{cid}"] = False
 
                 st.divider()
     else:
@@ -1094,15 +1195,25 @@ with tab_usuarios:
 # ══════════════════════════════════════════════
 
 with tab_billing:
+    # Boton de sincronizacion con MP
+    sync_col, status_col = st.columns([1, 3])
+    with sync_col:
+        if st.button("🔄 Sincronizar con Mercado Pago", key="sync_mp_all", use_container_width=True):
+            with st.spinner("Sincronizando suscripciones y pagos..."):
+                sub_r = sync_all_subscriptions(sb)
+                pay_r = sync_all_payments(sb)
+                st.toast(f"Subs: {sub_r['updated']} actualizadas | Pagos: {pay_r['new_payments']} nuevos")
+                st.rerun()
+
     subscriptions = safe_query(lambda: sb.table("subscriptions").select("*, companies(name)").execute())
     payments = safe_query(lambda: sb.table("payments").select("*, companies(name)").order("payment_date", desc=True).execute())
 
-    # KPIs
-    active_subs = [s for s in subscriptions if (s.get("status") or "").lower() == "active"]
-    mrr = sum(float(s.get("amount_usd") or 0) for s in active_subs)
+    # KPIs (corregido: price_usd en vez de amount_usd)
+    active_subs = [s for s in subscriptions if (s.get("status") or "").lower() in ("active", "authorized")]
+    mrr = sum(float(s.get("price_usd") or 0) for s in active_subs)
     paying = len(active_subs)
     overdue = sum(1 for s in subscriptions if (s.get("status") or "").lower() == "overdue")
-    total_revenue = sum(float(p.get("amount_usd") or 0) for p in payments if (p.get("status") or "").lower() == "paid")
+    total_revenue = sum(float(p.get("amount_usd") or 0) for p in payments if (p.get("status") or "").lower() in ("paid", "approved"))
 
     bk1, bk2, bk3, bk4 = st.columns(4)
     with bk1:
@@ -1114,9 +1225,16 @@ with tab_billing:
     with bk4:
         st.markdown(kpi_card("📈", "Revenue Acumulado", f"${total_revenue:,.0f}"), unsafe_allow_html=True)
 
+    # Alertas de trials vencidos
+    expired_trials = check_trial_expirations(sb)
+    if expired_trials:
+        st.warning(f"⚠️ {len(expired_trials)} empresa(s) con trial vencido sin suscripcion activa:")
+        for et in expired_trials:
+            st.markdown(f"- **{et.get('name', '?')}** ({et.get('contact_email', '')})")
+
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
-    # Tabla de suscripciones
+    # Tabla de suscripciones (corregido campos)
     section_header("📋", "Suscripciones")
 
     if subscriptions:
@@ -1127,17 +1245,19 @@ with tab_billing:
                 company_name = s["companies"].get("name", "")
             sub_data.append({
                 "Empresa": company_name,
-                "Monto USD": f"${float(s.get('amount_usd') or 0):,.2f}",
+                "Plan": (s.get("plan") or "N/A").title(),
+                "USD/mes": f"${float(s.get('price_usd') or 0):,.0f}",
                 "Estado": (s.get("status") or "N/A").upper(),
-                "Inicio": (s.get("start_date") or "")[:10],
-                "Ultimo Pago": (s.get("last_payment_date") or "")[:10],
+                "Periodo": f"{(s.get('current_period_start') or '')[:10]} → {(s.get('current_period_end') or '')[:10]}",
+                "MP ID": (s.get("mp_subscription_id") or "—")[:16],
+                "Sync": (s.get("last_synced_at") or "Nunca")[:16],
             })
         df_subs = pd.DataFrame(sub_data)
         st.dataframe(df_subs, use_container_width=True, hide_index=True)
     else:
         st.info("No hay suscripciones registradas.")
 
-    # Tabla de pagos recientes
+    # Tabla de pagos recientes (corregido)
     section_header("💳", "Pagos Recientes")
 
     if payments:
@@ -1150,8 +1270,8 @@ with tab_billing:
                 "Empresa": company_name,
                 "Monto USD": f"${float(p.get('amount_usd') or 0):,.2f}",
                 "Estado": (p.get("status") or "N/A").upper(),
-                "Metodo": p.get("method", "N/A"),
                 "Fecha": (p.get("payment_date") or "")[:10],
+                "MP ID": (p.get("mp_payment_id") or "—")[:16],
             })
         df_pays = pd.DataFrame(pay_data)
         st.dataframe(df_pays, use_container_width=True, hide_index=True)
