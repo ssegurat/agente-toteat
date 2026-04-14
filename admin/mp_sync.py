@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timezone
 
 from mercadopago_client import get_subscription, search_payments
@@ -74,6 +75,7 @@ def sync_all_subscriptions(sb) -> dict:
             updated += 1
         elif r.get("reason"):
             errors.append(f"{sub.get('id', '?')}: {r['reason']}")
+        time.sleep(0.3)  # Rate limiting: max ~3 req/sec a MP
 
     logger.info("[SYNC] Suscripciones: %d total, %d actualizadas, %d errores", total, updated, len(errors))
     return {"total": total, "updated": updated, "errors": errors}
@@ -90,6 +92,12 @@ def sync_payments_for_subscription(sb, subscription: dict) -> dict:
 
     # Buscar pagos en MP por external_reference
     mp_payments = search_payments(external_reference=ext_ref)
+
+    if not mp_payments:
+        return {"new_payments": 0}
+
+    # SECURITY: filtrar solo pagos que coinciden con nuestro external_reference
+    mp_payments = [p for p in mp_payments if str(p.get("external_reference", "")) == ext_ref]
 
     if not mp_payments:
         return {"new_payments": 0}
@@ -148,6 +156,7 @@ def sync_all_payments(sb) -> dict:
         total_new += r.get("new_payments", 0)
         if r.get("reason"):
             errors.append(r["reason"])
+        time.sleep(0.3)  # Rate limiting
 
     logger.info("[SYNC] Pagos: %d nuevos registrados", total_new)
     return {"total_subs": len(subs), "new_payments": total_new, "errors": errors}

@@ -1,6 +1,7 @@
 """Servicio de email — recordatorios de trial + resumen diario de ventas."""
 from __future__ import annotations
 
+import html
 import logging
 import smtplib
 from email.mime.text import MIMEText
@@ -86,6 +87,7 @@ def _base_template(title: str, body_html: str) -> str:
 
 def send_trial_reminder(to: str, company_name: str, days_left: int) -> bool:
     """Email recordatorio de trial (dia 3, 5)."""
+    company_name = html.escape(company_name)
     subject = f"Te quedan {days_left} dias de prueba — {company_name}"
     body = f"""
     <p>Hola,</p>
@@ -109,6 +111,7 @@ def send_trial_reminder(to: str, company_name: str, days_left: int) -> bool:
 
 def send_trial_expired(to: str, company_name: str) -> bool:
     """Email de trial expirado (dia 7)."""
+    company_name = html.escape(company_name)
     subject = f"Tu trial ha expirado — {company_name}"
     body = f"""
     <p>Hola,</p>
@@ -145,12 +148,14 @@ def send_daily_sales(
     top_products: list[tuple[str, int, float]] | None = None,
 ) -> bool:
     """Email diario con resumen de ventas del dia anterior."""
+    company_name = html.escape(company_name)
+    local_name = html.escape(local_name)
     subject = f"Ventas {fecha} — {local_name} — {_fmt_clp(venta_bruta)}"
 
     products_html = ""
     if top_products:
         rows = "".join(
-            f"<tr><td>{name}</td><td style='text-align:right'>{qty}</td><td style='text-align:right'>{_fmt_clp(rev)}</td></tr>"
+            f"<tr><td>{html.escape(name)}</td><td style='text-align:right'>{qty}</td><td style='text-align:right'>{_fmt_clp(rev)}</td></tr>"
             for name, qty, rev in top_products[:5]
         )
         products_html = f"""

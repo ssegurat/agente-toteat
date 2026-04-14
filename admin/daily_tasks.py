@@ -109,8 +109,9 @@ def send_daily_sales_emails(sb) -> dict:
                 else:
                     errors.append(f"{rest.get('name')}: email no enviado")
             except Exception as e:
-                errors.append(f"{rest.get('name', '?')}: {e}")
-                logger.error("[DAILY] Error procesando %s: %s", rest.get("name"), e)
+                safe_err = type(e).__name__  # No loguear str(e) que puede tener tokens
+                errors.append(f"{rest.get('name', '?')}: {safe_err}")
+                logger.error("[DAILY] Error procesando %s: %s", rest.get("name"), safe_err)
 
     logger.info("[DAILY] Emails de ventas enviados: %d, errores: %d", sent, len(errors))
     return {"sent": sent, "errors": errors}

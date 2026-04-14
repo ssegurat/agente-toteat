@@ -1765,7 +1765,7 @@ def render_chat(client=None, local_key="default", local_name=None):
                         tool_results = []
                         for tb in tbs:
                             tr_content = execute_tool(tb.name, tb.input, chat_client)
-                            print(f"[DEBUG TOOL] {tb.name}({tb.input}) → {tr_content[:200]}...")
+                            logging.getLogger("toteat.chat").info("[TOOL] %s → %d chars", tb.name, len(tr_content))
                             tool_results.append({"type": "tool_result", "tool_use_id": tb.id, "content": tr_content})
                         api_messages.append({"role": "user", "content": tool_results})
                         response = st.session_state.anthropic_client.messages.create(
@@ -3330,7 +3330,9 @@ def _check_trial_status(token: str) -> dict | None:
 
         return company  # Trial vencido sin suscripcion — BLOQUEAR
     except Exception:
-        return None  # En caso de error, no bloquear (fail open)
+        # Fail closed: si no podemos verificar, bloquear por seguridad
+        logging.getLogger("toteat.trial").error("[TRIAL] Error verificando status", exc_info=True)
+        return {"id": None, "name": "Error de verificacion", "_gate_error": True}
 
 
 def _render_trial_expired_view(client, local_key: str = "default"):

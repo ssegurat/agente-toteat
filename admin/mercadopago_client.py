@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import urlencode
+
 import streamlit as st
 import requests
 
@@ -148,7 +150,7 @@ def search_payments(
     if status:
         params["status"] = status
 
-    query = "&".join(f"{k}={v}" for k, v in params.items())
+    query = urlencode(params)
     result = _request("GET", f"/v1/payments/search?{query}")
 
     if result.get("error"):

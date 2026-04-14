@@ -21,3 +21,6 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_mp_id ON subscriptions(mp_subscript
 CREATE INDEX IF NOT EXISTS idx_subscriptions_company ON subscriptions(company_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_external_ref ON subscriptions(external_reference);
 CREATE INDEX IF NOT EXISTS idx_payments_mp_id ON payments(mp_payment_id);
+
+-- UNIQUE constraint para idempotencia en sync de pagos
+ALTER TABLE payments ADD CONSTRAINT uq_payments_mp_payment_id UNIQUE (mp_payment_id);
