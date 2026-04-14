@@ -3407,7 +3407,6 @@ def _generate_token() -> str:
 
 def render_signup_page():
     """Página de registro self-service."""
-    st.set_page_config(page_title="Toteat Intelligence — Registro", page_icon="🍽️", layout="centered")
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
     plan_param = st.query_params.get("plan", "starter")
@@ -3518,7 +3517,6 @@ def render_signup_page():
 
 def render_setup_wizard():
     """Wizard de configuración de restaurante (primera vez)."""
-    st.set_page_config(page_title="Toteat Intelligence — Configuracion", page_icon="⚙️", layout="centered")
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
     token = st.query_params.get("token")
@@ -3673,7 +3671,6 @@ def render_setup_wizard():
 
 def render_accept_invitation():
     """Página para aceptar una invitación de equipo."""
-    st.set_page_config(page_title="Toteat Intelligence — Invitacion", page_icon="✉️", layout="centered")
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
     invite_token = st.query_params.get("invite")
