@@ -3366,15 +3366,425 @@ def _render_trial_expired_view(client, local_key: str = "default"):
     except Exception:
         st.info("No se pudo obtener la venta del dia.")
 
-    # Banner de upgrade
+    # Banner de upgrade con boton de checkout MP
     st.markdown(f'''<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:24px;text-align:center;margin:20px 0;">
         <div style="font-size:24px;">🔒</div>
         <div style="font-size:18px;font-weight:700;color:#1a1a1a;margin:8px 0;">Suscribete para ver todo el detalle</div>
         <div style="color:#6b7280;font-size:14px;">Chat IA, KPIs gastronomicos, detalle por mesero, producto, hora y mas.</div>
-        <div style="margin-top:16px;">
-            <span style="background:#E8553D;color:white;padding:10px 28px;border-radius:8px;font-weight:700;">Desde $19 USD/mes</span>
+    </div>''', unsafe_allow_html=True)
+
+    # Intentar mostrar link de checkout MP
+    try:
+        token = st.query_params.get("token")
+        if _supabase and token:
+            user_r = _supabase.table("users").select("company_id").eq("token", token).limit(1).execute()
+            if user_r.data:
+                cid = user_r.data[0]["company_id"]
+                sub_r = _supabase.table("subscriptions").select("mp_init_point, status").eq("company_id", cid).order("created_at", desc=True).limit(1).execute()
+                if sub_r.data and sub_r.data[0].get("mp_init_point"):
+                    init_point = sub_r.data[0]["mp_init_point"]
+                    st.link_button("💳 Suscribirme ahora — desde $19 USD/mes", init_point, type="primary", use_container_width=True)
+                else:
+                    st.info("Contacta a soporte para activar tu suscripcion: sebastian@toteat.com")
+    except Exception:
+        st.info("Contacta a soporte para suscribirte: sebastian@toteat.com")
+
+
+# ──────────────────────────────────────────────
+# ONBOARDING — Signup + Setup Wizard
+# ──────────────────────────────────────────────
+
+APP_BASE_URL = os.getenv("APP_BASE_URL", "https://agente-toteat-oqergggvisvyaguapprsq23.streamlit.app")
+
+COUNTRY_OPTIONS_ONBOARD = ["CL", "AR", "PE", "CO", "CR", "MX"]
+COUNTRY_LABELS_ONBOARD = {"CL": "Chile", "AR": "Argentina", "PE": "Peru", "CO": "Colombia", "CR": "Costa Rica", "MX": "Mexico"}
+
+
+def _generate_token() -> str:
+    import hashlib, uuid
+    return hashlib.sha256(uuid.uuid4().hex.encode()).hexdigest()[:32]
+
+
+def render_signup_page():
+    """Página de registro self-service."""
+    st.set_page_config(page_title="Toteat Intelligence — Registro", page_icon="🍽️", layout="centered")
+    st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+    plan_param = st.query_params.get("plan", "starter")
+
+    st.markdown(f'''<div style="text-align:center;padding:20px 0;">
+        <div class="toteat-brand" style="justify-content:center;">
+            <div class="toteat-logo-icon">t</div>
+            <div>
+                <div class="toteat-title">tot<span>eat</span> <span>AI</span></div>
+                <div class="toteat-subtitle">Comienza tu prueba gratis de 7 dias</div>
+            </div>
         </div>
     </div>''', unsafe_allow_html=True)
+
+    with st.form("signup_form"):
+        st.markdown("### Crea tu cuenta")
+        col1, col2 = st.columns(2)
+        with col1:
+            company_name = st.text_input("Nombre de tu empresa *", placeholder="Ej: Tanaka Spa")
+            contact_email = st.text_input("Email de contacto *", placeholder="tu@email.com")
+        with col2:
+            country = st.selectbox("Pais *", COUNTRY_OPTIONS_ONBOARD,
+                                   format_func=lambda x: COUNTRY_LABELS_ONBOARD.get(x, x))
+            plan = st.selectbox("Plan", ["starter", "professional"],
+                                index=0 if plan_param == "starter" else 1,
+                                format_func=lambda x: {"starter": "Starter — $19 USD/mes", "professional": "Professional — $49 USD/mes"}.get(x, x))
+
+        st.caption("Todos los planes incluyen 7 dias de prueba gratis, sin tarjeta de credito.")
+        submitted = st.form_submit_button("Crear mi cuenta gratis", use_container_width=True, type="primary")
+
+    if submitted:
+        if not company_name or not contact_email:
+            st.error("Nombre de empresa y email son obligatorios.")
+            return
+        if "@" not in contact_email:
+            st.error("Ingresa un email valido.")
+            return
+
+        sb = _supabase
+        if not sb:
+            st.error("Error de configuracion. Contacta a soporte.")
+            return
+
+        # Verificar email duplicado
+        try:
+            existing = sb.table("users").select("id").eq("email", contact_email).limit(1).execute()
+            if existing.data:
+                st.error("Ya existe una cuenta con este email. Contacta a soporte si necesitas acceso.")
+                return
+        except Exception:
+            pass
+
+        with st.spinner("Creando tu cuenta..."):
+            try:
+                token = _generate_token()
+                trial_ends = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat() if hasattr(datetime, 'now') else (date.today() + timedelta(days=7)).isoformat()
+
+                # Crear empresa
+                from datetime import datetime as dt_cls, timezone as tz_cls
+                trial_ends = (dt_cls.now(tz_cls.utc) + timedelta(days=7)).isoformat()
+                company_result = sb.table("companies").insert({
+                    "name": company_name,
+                    "country": country,
+                    "contact_email": contact_email,
+                    "plan": plan,
+                    "status": "trial",
+                    "trial_ends_at": trial_ends,
+                }).execute()
+
+                if not company_result.data:
+                    st.error("Error creando la empresa.")
+                    return
+
+                company_id = company_result.data[0]["id"]
+
+                # Crear usuario admin
+                sb.table("users").insert({
+                    "company_id": company_id,
+                    "email": contact_email,
+                    "name": company_name,
+                    "role": "admin",
+                    "token": token,
+                    "status": "active",
+                }).execute()
+
+                # Enviar email de bienvenida
+                try:
+                    import sys as _sys
+                    _sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "admin"))
+                    from email_service import send_welcome_email
+                    send_welcome_email(contact_email, company_name, token, APP_BASE_URL)
+                except Exception as e:
+                    logging.getLogger("toteat.signup").warning("No se pudo enviar welcome email: %s", type(e).__name__)
+
+                st.success("Cuenta creada exitosamente!")
+                st.markdown(f"""
+                **Siguiente paso:** Conecta tu restaurante de Toteat.
+
+                Tu link de acceso personal:
+                """)
+                setup_url = f"{APP_BASE_URL}?page=setup&token={token}"
+                st.code(setup_url, language=None)
+                st.link_button("Configurar mi restaurante →", setup_url, type="primary", use_container_width=True)
+
+            except Exception as e:
+                st.error(f"Error: {type(e).__name__}. Intenta de nuevo o contacta soporte.")
+
+
+def render_setup_wizard():
+    """Wizard de configuración de restaurante (primera vez)."""
+    st.set_page_config(page_title="Toteat Intelligence — Configuracion", page_icon="⚙️", layout="centered")
+    st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+    token = st.query_params.get("token")
+    if not token:
+        st.error("Token de acceso requerido.")
+        return
+
+    sb = _supabase
+    if not sb:
+        st.error("Error de configuracion.")
+        return
+
+    # Obtener usuario
+    try:
+        user_result = sb.table("users").select("id, company_id, name, email").eq("token", token).eq("status", "active").limit(1).execute()
+        if not user_result.data:
+            st.error("Token invalido o expirado.")
+            return
+        user = user_result.data[0]
+        company_result = sb.table("companies").select("name").eq("id", user["company_id"]).limit(1).execute()
+        company_name = company_result.data[0]["name"] if company_result.data else "Tu empresa"
+    except Exception:
+        st.error("Error de autenticacion.")
+        return
+
+    st.markdown(f'''<div style="text-align:center;padding:20px 0;">
+        <div class="toteat-brand" style="justify-content:center;">
+            <div class="toteat-logo-icon">t</div>
+            <div>
+                <div class="toteat-title">tot<span>eat</span> <span>AI</span></div>
+                <div class="toteat-subtitle">Configura {company_name}</div>
+            </div>
+        </div>
+    </div>''', unsafe_allow_html=True)
+
+    # Verificar si ya tiene restaurantes
+    try:
+        existing_rests = sb.table("restaurants").select("id").eq("company_id", user["company_id"]).limit(1).execute()
+        if existing_rests.data:
+            st.success("Ya tienes un restaurante configurado!")
+            dashboard_url = f"{APP_BASE_URL}?token={token}"
+            st.link_button("Ir al Dashboard →", dashboard_url, type="primary", use_container_width=True)
+            return
+    except Exception:
+        pass
+
+    st.markdown("### Paso 1: Conecta tu restaurante de Toteat")
+    st.caption("Necesitas las credenciales de la API de Toteat. Si no las tienes, pidelas a tu contacto de Toteat.")
+
+    with st.form("setup_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            rest_name = st.text_input("Nombre del local *", placeholder="Ej: Mi Restaurante Santiago")
+            api_token = st.text_input("API Token de Toteat *", type="password")
+            restaurant_id = st.text_input("Restaurant ID *")
+        with col2:
+            local_id = st.text_input("Local ID", value="1")
+            user_id = st.text_input("User ID *")
+            base_url = st.text_input("Base URL", value="https://api.toteat.com/mw/or/1.0/")
+
+        st.markdown("---")
+        st.markdown("### Paso 2: Parametros operacionales (opcional)")
+        st.caption("Estos datos mejoran los KPIs gastronomicos. Puedes completarlos despues.")
+
+        op1, op2, op3 = st.columns(3)
+        with op1:
+            sueldos = st.number_input("Sueldos mensuales ($)", value=0, min_value=0)
+            arriendo_uf = st.number_input("Arriendo (UF)", value=0.0, min_value=0.0, step=0.5)
+        with op2:
+            servicios = st.number_input("Servicios ($)", value=0, min_value=0)
+            otros = st.number_input("Otros gastos ($)", value=0, min_value=0)
+        with op3:
+            horas_op = st.number_input("Horas operacion/dia", value=12, min_value=1, max_value=24)
+            m2 = st.number_input("Metros cuadrados", value=100, min_value=1)
+            num_empleados = st.number_input("Num. empleados", value=10, min_value=1)
+
+        submitted = st.form_submit_button("Guardar y continuar →", use_container_width=True, type="primary")
+
+    # Botón de test conexión (fuera del form para que funcione independientemente)
+    if api_token and restaurant_id and user_id:
+        if st.button("🔌 Probar conexion con Toteat", use_container_width=True):
+            with st.spinner("Conectando..."):
+                try:
+                    test_client = ToteatAPI(
+                        api_token=api_token,
+                        restaurant_id=restaurant_id,
+                        local_id=local_id or "1",
+                        user_id=user_id,
+                        base_url=base_url or "https://api.toteat.com/mw/or/1.0/",
+                    )
+                    result = test_client.get_shift_status()
+                    if result:
+                        st.success("Conexion exitosa! Toteat responde correctamente.")
+                    else:
+                        st.warning("Toteat respondio pero sin datos. Verifica las credenciales.")
+                except Exception as e:
+                    st.error(f"Error de conexion: {type(e).__name__}. Verifica las credenciales.")
+
+    if submitted:
+        if not rest_name or not api_token or not restaurant_id or not user_id:
+            st.error("Nombre del local, API Token, Restaurant ID y User ID son obligatorios.")
+            return
+
+        with st.spinner("Guardando configuracion..."):
+            try:
+                import re
+                slug = re.sub(r"[^\w\s-]", "", rest_name.lower().strip())
+                slug = re.sub(r"[\s_]+", "-", slug) or "local"
+
+                # Crear restaurante
+                rest_result = sb.table("restaurants").insert({
+                    "company_id": user["company_id"],
+                    "name": rest_name,
+                    "slug": slug,
+                    "api_token": api_token,
+                    "restaurant_id": restaurant_id,
+                    "local_id": local_id or "1",
+                    "user_id": user_id,
+                    "base_url": base_url or "https://api.toteat.com/mw/or/1.0/",
+                    "sueldos": sueldos,
+                    "arriendo_uf": arriendo_uf,
+                    "servicios": servicios,
+                    "otros": otros,
+                    "horas_op": horas_op,
+                    "m2": m2,
+                    "num_empleados": num_empleados,
+                    "status": "active",
+                }).execute()
+
+                if rest_result.data:
+                    new_rest_id = rest_result.data[0]["id"]
+                    # Asignar restaurante al usuario
+                    sb.table("user_restaurants").insert({
+                        "user_id": user["id"],
+                        "restaurant_id": new_rest_id,
+                    }).execute()
+
+                    st.success("Restaurante configurado exitosamente!")
+                    st.balloons()
+                    dashboard_url = f"{APP_BASE_URL}?token={token}"
+                    st.link_button("Ir al Dashboard →", dashboard_url, type="primary", use_container_width=True)
+                else:
+                    st.error("Error guardando la configuracion.")
+
+            except Exception as e:
+                st.error(f"Error: {type(e).__name__}. Intenta de nuevo.")
+
+
+# ──────────────────────────────────────────────
+# INVITACIONES
+# ──────────────────────────────────────────────
+
+def render_accept_invitation():
+    """Página para aceptar una invitación de equipo."""
+    st.set_page_config(page_title="Toteat Intelligence — Invitacion", page_icon="✉️", layout="centered")
+    st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+    invite_token = st.query_params.get("invite")
+    if not invite_token:
+        st.error("Token de invitacion requerido.")
+        return
+
+    sb = _supabase
+    if not sb:
+        st.error("Error de configuracion.")
+        return
+
+    # Buscar invitación válida
+    try:
+        from datetime import datetime as dt_cls, timezone as tz_cls
+        now_str = dt_cls.now(tz_cls.utc).isoformat()
+        inv_result = sb.table("invitations").select("*, companies(name)").eq("token", invite_token).eq("status", "pending").limit(1).execute()
+
+        if not inv_result.data:
+            st.error("Invitacion invalida, ya usada o expirada.")
+            return
+
+        inv = inv_result.data[0]
+        expires_at = inv.get("expires_at", "")
+        if expires_at and expires_at < now_str:
+            st.error("Esta invitacion ha expirado. Pide una nueva a tu administrador.")
+            return
+
+        company_name = inv["companies"]["name"] if isinstance(inv.get("companies"), dict) else "Tu empresa"
+        role = inv.get("role", "viewer")
+        role_label = {"admin": "Administrador", "manager": "Gerente", "viewer": "Visor"}.get(role, role)
+
+    except Exception as e:
+        st.error(f"Error: {type(e).__name__}")
+        return
+
+    st.markdown(f'''<div style="text-align:center;padding:20px 0;">
+        <div class="toteat-brand" style="justify-content:center;">
+            <div class="toteat-logo-icon">t</div>
+            <div>
+                <div class="toteat-title">tot<span>eat</span> <span>AI</span></div>
+                <div class="toteat-subtitle">Invitacion de equipo</div>
+            </div>
+        </div>
+    </div>''', unsafe_allow_html=True)
+
+    st.markdown(f"""
+    ### Has sido invitado a **{company_name}**
+    Rol: **{role_label}**
+    """)
+
+    with st.form("accept_invite_form"):
+        user_name = st.text_input("Tu nombre *", placeholder="Ej: Juan Perez")
+        submitted = st.form_submit_button("Aceptar invitacion", use_container_width=True, type="primary")
+
+    if submitted:
+        if not user_name:
+            st.error("Ingresa tu nombre.")
+            return
+
+        with st.spinner("Creando tu cuenta..."):
+            try:
+                new_token = _generate_token()
+
+                # Crear usuario
+                user_result = sb.table("users").insert({
+                    "company_id": inv["company_id"],
+                    "email": inv["email"],
+                    "name": user_name,
+                    "role": role,
+                    "token": new_token,
+                    "status": "active",
+                }).execute()
+
+                if not user_result.data:
+                    st.error("Error creando la cuenta.")
+                    return
+
+                new_user_id = user_result.data[0]["id"]
+
+                # Asignar restaurantes
+                restaurant_ids = inv.get("restaurant_ids") or []
+                if restaurant_ids:
+                    for rid in restaurant_ids:
+                        sb.table("user_restaurants").insert({
+                            "user_id": new_user_id,
+                            "restaurant_id": rid,
+                        }).execute()
+                else:
+                    # Sin restaurantes específicos → asignar todos los de la empresa
+                    all_rests = sb.table("restaurants").select("id").eq("company_id", inv["company_id"]).eq("status", "active").execute()
+                    for r in (all_rests.data or []):
+                        sb.table("user_restaurants").insert({
+                            "user_id": new_user_id,
+                            "restaurant_id": r["id"],
+                        }).execute()
+
+                # Marcar invitación como aceptada
+                from datetime import datetime as dt_cls, timezone as tz_cls
+                sb.table("invitations").update({
+                    "status": "accepted",
+                    "accepted_at": dt_cls.now(tz_cls.utc).isoformat(),
+                }).eq("id", inv["id"]).execute()
+
+                st.success(f"Bienvenido a {company_name}!")
+                st.balloons()
+                dashboard_url = f"{APP_BASE_URL}?token={new_token}"
+                st.link_button("Ir al Dashboard →", dashboard_url, type="primary", use_container_width=True)
+
+            except Exception as e:
+                st.error(f"Error: {type(e).__name__}. Intenta de nuevo.")
 
 
 # ──────────────────────────────────────────────
@@ -3382,13 +3792,27 @@ def _render_trial_expired_view(client, local_key: str = "default"):
 # ──────────────────────────────────────────────
 
 def main():
-    from multi_local import is_multi_local_mode, authenticate_by_token, load_locals_config, get_clients_for_locals, get_local_config
+    from multi_local import (is_multi_local_mode, authenticate_by_token,
+                             load_locals_config, load_locals_config_unified,
+                             get_clients_for_locals, get_local_config, needs_setup)
 
     init_session_state()
 
+    # ── Routing para páginas de onboarding ──
+    page = st.query_params.get("page")
+    if page == "signup":
+        render_signup_page()
+        return
+    if page == "setup":
+        render_setup_wizard()
+        return
+    if page == "accept-invite":
+        render_accept_invitation()
+        return
+
     if is_multi_local_mode():
         token, allowed_locals = authenticate_by_token()
-        if not token or not allowed_locals:
+        if not token or (not allowed_locals and not needs_setup()):
             st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
             if token:
                 st.markdown(f'''<div style="text-align:center;padding:80px 20px;">
@@ -3404,16 +3828,22 @@ def main():
                 </div>''', unsafe_allow_html=True)
             return
 
+        # ── Redirigir a setup si el usuario no tiene restaurantes ──
+        if needs_setup():
+            st.query_params["page"] = "setup"
+            st.rerun()
+            return
+
         # ── Trial gate: verificar si el trial vencio ──
         expired_company = _check_trial_status(token)
         if expired_company:
-            locals_config = load_locals_config()
+            locals_config = load_locals_config_unified()
             clients = get_clients_for_locals(allowed_locals, locals_config)
             first_client = next(iter(clients.values()), None)
             _render_trial_expired_view(first_client, local_key=allowed_locals[0] if allowed_locals else "default")
             return
 
-        locals_config = load_locals_config()
+        locals_config = load_locals_config_unified()
         clients = get_clients_for_locals(allowed_locals, locals_config)
 
         # Selector de local

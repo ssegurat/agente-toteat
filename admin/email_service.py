@@ -137,6 +137,64 @@ def send_trial_expired(to: str, company_name: str) -> bool:
     return _send_email(to, subject, _base_template("Trial Expirado", body))
 
 
+# ── Welcome Email ──
+
+def send_welcome_email(to: str, company_name: str, token: str,
+                       app_base_url: str = "https://agente-toteat-oqergggvisvyaguapprsq23.streamlit.app") -> bool:
+    """Email de bienvenida con link de setup."""
+    company_name = html.escape(company_name)
+    setup_url = f"{app_base_url}?page=setup&token={token}"
+    dashboard_url = f"{app_base_url}?token={token}"
+
+    subject = f"Bienvenido a Toteat Intelligence — {company_name}"
+    body = f"""
+    <p>Hola,</p>
+    <p>Tu cuenta de <strong>Toteat Intelligence</strong> para <strong>{company_name}</strong> esta lista.</p>
+    <p>Tienes <strong>7 dias de prueba gratis</strong> con acceso completo a:</p>
+    <ul>
+      <li>Dashboard de ventas en tiempo real</li>
+      <li>Chat IA para consultar datos al instante</li>
+      <li>KPIs gastronomicos automaticos</li>
+      <li>Email diario con resumen de ventas</li>
+    </ul>
+    <p><strong>Siguiente paso:</strong> Conecta tu restaurante de Toteat:</p>
+    <a href="{setup_url}" class="btn">Configurar mi restaurante</a>
+    <p style="color:#6b7280;font-size:13px;margin-top:20px;">
+    Si ya configuraste tu restaurante, accede directamente a tu
+    <a href="{dashboard_url}">dashboard</a>.</p>
+    """
+    return _send_email(to, subject, _base_template("Bienvenido a Toteat Intelligence", body))
+
+
+# ── Invitation Email ──
+
+def send_invitation_email(to: str, company_name: str, inviter_name: str,
+                          role: str, invite_token: str,
+                          app_base_url: str = "https://agente-toteat-oqergggvisvyaguapprsq23.streamlit.app") -> bool:
+    """Email de invitacion a un nuevo miembro del equipo."""
+    company_name = html.escape(company_name)
+    inviter_name = html.escape(inviter_name)
+    accept_url = f"{app_base_url}?page=accept-invite&invite={invite_token}"
+    role_label = {"admin": "Administrador", "manager": "Gerente", "viewer": "Visor"}.get(role, role)
+
+    subject = f"{inviter_name} te invito a Toteat Intelligence — {company_name}"
+    body = f"""
+    <p>Hola,</p>
+    <p><strong>{inviter_name}</strong> te ha invitado a unirte al equipo de
+    <strong>{company_name}</strong> en Toteat Intelligence como <strong>{role_label}</strong>.</p>
+    <p>Con Toteat Intelligence podras:</p>
+    <ul>
+      <li>Ver el dashboard de ventas en tiempo real</li>
+      <li>Consultar datos con el Chat IA</li>
+      <li>Recibir KPIs gastronomicos automaticos</li>
+    </ul>
+    <a href="{accept_url}" class="btn">Aceptar invitacion</a>
+    <p style="color:#6b7280;font-size:13px;margin-top:20px;">
+    Esta invitacion expira en 7 dias. Si no esperabas esta invitacion, puedes ignorar este email.</p>
+    """
+    return _send_email(to, subject, _base_template(f"Invitacion — {company_name}", body))
+
+
 # ── Email Diario de Ventas ──
 
 def _fmt_clp(n: float) -> str:
