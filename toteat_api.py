@@ -66,13 +66,13 @@ class ToteatAPI:
         return self._get("sales", {
             "ini": self._format_date(date_from),
             "end": self._format_date(date_to),
-        })
+        }, timeout=30)
 
     def get_sales_by_waiter(self, date_from: str, date_to: str) -> dict:
         return self._get("salesbywaiter", {
             "initial_date": self._format_date(date_from),
             "final_date": self._format_date(date_to),
-        })
+        }, timeout=30)
 
     def get_order_status(self, order_ids: str, detail: bool = False) -> dict:
         return self._get("orderstatus", {"ic": order_ids, "det": str(detail).lower()})
@@ -81,22 +81,22 @@ class ToteatAPI:
         return self._get("orders/cancellation-report", {
             "ini": self._format_date(date_from),
             "end": self._format_date(date_to),
-        })
+        }, timeout=30)
 
     def get_fiscal_documents(self, date_from: str, date_to: str) -> dict:
         return self._get("fiscaldocuments", {
             "ini": self._format_date(date_from),
             "end": self._format_date(date_to),
-        })
+        }, timeout=30)
 
     def get_inventory_state(self, date_from: str, date_to: str) -> dict:
         return self._get("inventorystate", {
             "initial_date": self._format_date(date_from),
             "final_date": self._format_date(date_to),
-        })
+        }, timeout=30)
 
     def get_accounting_movements(self, date_from: str, date_to: str) -> dict:
         return self._get("accountingmovements", {
             "initial_date": self._format_date(date_from),
             "final_date": self._format_date(date_to),
-        })
+        }, timeout=30)
