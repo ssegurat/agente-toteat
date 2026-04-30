@@ -905,6 +905,21 @@ def init_session_state():
         if k not in st.session_state:
             st.session_state[k] = [] if k == "messages" else None
 
+    # Inicializar Anthropic client desde secrets/env (funciona en cualquier modo)
+    if st.session_state.anthropic_client is None:
+        ak = os.getenv("ANTHROPIC_API_KEY", "")
+        if not ak:
+            try:
+                ak = st.secrets.get("ANTHROPIC_API_KEY", "")
+            except Exception:
+                pass
+        if ak:
+            try:
+                import anthropic
+                st.session_state.anthropic_client = anthropic.Anthropic(api_key=ak)
+            except Exception:
+                pass
+
 def setup_sidebar():
     with st.sidebar:
         st.markdown("### Conexion Toteat")
